@@ -37,7 +37,8 @@
 #include <pdal/PointView.hpp>
 #include <pdal/StageFactory.hpp>
 #include <pdal/PipelineManager.hpp>
-#include <pdal/PipelineReader.hpp>
+#include <pdal/PipelineReaderJSON.hpp>
+#include <pdal/PipelineReaderXML.hpp>
 #include <FerryFilter.hpp>
 #include <LasReader.hpp>
 #include "Support.hpp"
@@ -51,11 +52,41 @@ TEST(FerryFilterTest, create)
     EXPECT_TRUE(filter.get());
 }
 
-TEST(FerryFilterTest, test_ferry_copy)
+TEST(FerryFilterTest, test_ferry_copy_xml)
 {
     PipelineManager mgr;
-    PipelineReader specReader(mgr);
+    PipelineReaderXML specReader(mgr);
     specReader.readPipeline(Support::configuredpath("filters/ferry.xml"));
+
+    mgr.execute();
+    ConstPointTableRef table(mgr.pointTable());
+
+    PointViewSet viewSet = mgr.views();
+
+    EXPECT_EQ(viewSet.size(), 1u);
+    PointViewPtr view = *viewSet.begin();
+    EXPECT_EQ(view->size(), 1065u);
+
+    Dimension::Id::Enum state_plane_x = table.layout()->findDim("StatePlaneX");
+    Dimension::Id::Enum state_plane_y = table.layout()->findDim("StatePlaneY");
+
+    double lon = view->getFieldAs<double>(Dimension::Id::X, 0);
+    double lat = view->getFieldAs<double>(Dimension::Id::Y, 0);
+
+    double x = view->getFieldAs<double>(state_plane_x, 0);
+    double y = view->getFieldAs<double>(state_plane_y, 0);
+
+    EXPECT_DOUBLE_EQ(-117.2501328350574, lon);
+    EXPECT_DOUBLE_EQ(49.341077824192915, lat);
+    EXPECT_DOUBLE_EQ(637012.24, x);
+    EXPECT_DOUBLE_EQ(849028.31, y);
+}
+
+TEST(FerryFilterTest, test_ferry_copy_json)
+{
+    PipelineManager mgr;
+    PipelineReaderJSON specReader(mgr);
+    specReader.readPipeline(Support::configuredpath("filters/ferry.json"));
 
     mgr.execute();
     ConstPointTableRef table(mgr.pointTable());
@@ -89,7 +120,7 @@ TEST(FerryFilterTest, test_ferry_invalid)
     reader.setOptions(ops1);
 
     Options op1;
-    
+
     op1.add("dimensions", "X=X");
 
     FerryFilter f1;
@@ -131,4 +162,3 @@ TEST(FerryFilterTest, test_ferry_invalid)
     // Make sure we reject bad option format.
     EXPECT_THROW(f4.prepare(table), pdal_error);
 }
-

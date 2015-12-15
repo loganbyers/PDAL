@@ -35,7 +35,8 @@
 #include <pdal/pdal_test_main.hpp>
 
 #include <pdal/PipelineManager.hpp>
-#include <pdal/PipelineReader.hpp>
+#include <pdal/PipelineReaderJSON.hpp>
+#include <pdal/PipelineReaderXML.hpp>
 #include <pdal/StageFactory.hpp>
 #include <pdal/StageWrapper.hpp>
 #include <stats/StatsFilter.hpp>
@@ -354,22 +355,42 @@ TEST_F(PredicateFilterTest, PredicateFilterTest_test5)
     ASSERT_THROW(filter->execute(table), pdal::pdal_error);
 }
 
-TEST_F(PredicateFilterTest, PredicateFilterTest_Pipeline)
+TEST_F(PredicateFilterTest, PredicateFilterTest_PipelineXML)
 {
     PipelineManager mgr;
-    PipelineReader reader(mgr);
+    PipelineReaderXML reader(mgr);
 
     reader.readPipeline(Support::configuredpath("plang/from-module.xml"));
     point_count_t cnt = mgr.execute();
     EXPECT_EQ(cnt, 1u);
 }
 
-TEST_F(PredicateFilterTest, PredicateFilterTest_Embed)
+TEST_F(PredicateFilterTest, PredicateFilterTest_PipelineJSON)
 {
     PipelineManager mgr;
-    PipelineReader reader(mgr);
+    PipelineReaderJSON reader(mgr);
+
+    reader.readPipeline(Support::configuredpath("plang/from-module.json"));
+    point_count_t cnt = mgr.execute();
+    EXPECT_EQ(cnt, 1u);
+}
+
+TEST_F(PredicateFilterTest, PredicateFilterTest_EmbedXML)
+{
+    PipelineManager mgr;
+    PipelineReaderXML reader(mgr);
 
     reader.readPipeline(Support::configuredpath("plang/predicate-embed.xml"));
+    point_count_t cnt = mgr.execute();
+    EXPECT_EQ(cnt, 1u);
+}
+
+TEST_F(PredicateFilterTest, PredicateFilterTest_EmbedJSON)
+{
+    PipelineManager mgr;
+    PipelineReaderJSON reader(mgr);
+
+    reader.readPipeline(Support::configuredpath("plang/predicate-embed.json"));
     point_count_t cnt = mgr.execute();
     EXPECT_EQ(cnt, 1u);
 }

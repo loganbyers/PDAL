@@ -38,7 +38,8 @@
 #include <boost/algorithm/string.hpp>
 
 #include <pdal/util/FileUtils.hpp>
-#include <pdal/PipelineReader.hpp>
+#include <pdal/PipelineReaderJSON.hpp>
+#include <pdal/PipelineReaderXML.hpp>
 #include <pdal/util/Utils.hpp>
 
 namespace pdal
@@ -53,12 +54,17 @@ PipelineManagerPtr KernelSupport::makePipeline(const std::string& inputFile)
 
     if (inputFile == "STDIN")
     {
-        PipelineReader pipeReader(*output);
+        PipelineReaderXML pipeReader(*output);
         pipeReader.readPipeline(std::cin);
     }
     else if (boost::filesystem::extension(inputFile) == ".xml")
     {
-        PipelineReader pipeReader(*output);
+        PipelineReaderXML pipeReader(*output);
+        pipeReader.readPipeline(inputFile);
+    }
+    else if (boost::filesystem::extension(inputFile) == ".json")
+    {
+        PipelineReaderJSON pipeReader(*output);
         pipeReader.readPipeline(inputFile);
     }
     else

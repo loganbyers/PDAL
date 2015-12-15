@@ -54,7 +54,8 @@ set(PDAL_BASE_HPP
   "${PDAL_HEADERS_DIR}/Metadata.hpp"
   "${PDAL_HEADERS_DIR}/Options.hpp"
   "${PDAL_HEADERS_DIR}/PipelineManager.hpp"
-  "${PDAL_HEADERS_DIR}/PipelineReader.hpp"
+  "${PDAL_HEADERS_DIR}/PipelineReaderJSON.hpp"
+  "${PDAL_HEADERS_DIR}/PipelineReaderXML.hpp"
   "${PDAL_HEADERS_DIR}/PipelineWriter.hpp"
   "${PDAL_HEADERS_DIR}/PointLayout.hpp"
   "${PDAL_HEADERS_DIR}/PointTable.hpp"
@@ -91,7 +92,8 @@ set(PDAL_BASE_CPP
   PointView.cpp
 
   PipelineManager.cpp
-  PipelineReader.cpp
+  PipelineReaderJSON.cpp
+  PipelineReaderXML.cpp
   PipelineWriter.cpp
   PluginManager.cpp
   QuadIndex.cpp
@@ -103,6 +105,7 @@ set(PDAL_BASE_CPP
   ${PDAL_XML_SRC}
   ${PDAL_LAZPERF_SRC}
   ${DB_DRIVER_SRCS}
+  ${PROJECT_SOURCE_DIR}/vendor/jsoncpp-1.6.2/dist/jsoncpp.cpp
 )
 
 list (APPEND PDAL_CPP ${PDAL_BASE_CPP} )

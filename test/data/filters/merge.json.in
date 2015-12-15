@@ -1,0 +1,18 @@
+{
+  "Pipeline": {
+    "Readers": [{
+      "type": "readers.las",
+      "options": {
+        "filename": "@CMAKE_SOURCE_DIR@/test/data/las/1.2-with-color.las"
+      }
+    }, {
+      "type": "readers.las",
+      "options": {
+        "filename": "@CMAKE_SOURCE_DIR@/test/data/las/1.2-with-color.las"
+      }
+    }],
+    "Filters": [{
+      "type": "filters.merge"
+    }]
+  }
+}

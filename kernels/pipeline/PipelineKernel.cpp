@@ -38,8 +38,11 @@
 #include <pdal/XMLSchema.hpp>
 #endif
 
+#include <boost/filesystem.hpp>
 #include <boost/program_options.hpp>
 
+#include <pdal/PipelineReaderJSON.hpp>
+#include <pdal/PipelineReaderXML.hpp>
 #include <pdal/PDALUtils.hpp>
 
 namespace pdal
@@ -111,8 +114,18 @@ int PipelineKernel::execute()
 
     pdal::PipelineManager manager(m_progressFd);
 
-    pdal::PipelineReader reader(manager, isDebug(), getVerboseLevel());
-    bool isWriter = reader.readPipeline(m_inputFile);
+    bool isWriter;
+    if (boost::filesystem::extension(m_inputFile) == ".xml")
+    {
+        PipelineReaderXML pipeReader(manager, isDebug(), getVerboseLevel());
+        isWriter = pipeReader.readPipeline(m_inputFile);
+    }
+    else if (boost::filesystem::extension(m_inputFile) == ".json")
+    {
+        PipelineReaderJSON pipeReader(manager, isDebug(), getVerboseLevel());
+        isWriter = pipeReader.readPipeline(m_inputFile);
+    }
+
     if (!isWriter)
         throw app_runtime_error("Pipeline file does not contain a writer. "
             "Use 'pdal info' to read the data.");
@@ -128,7 +141,7 @@ int PipelineKernel::execute()
     {
 #ifdef PDAL_HAVE_LIBXML2
         XMLSchema schema(manager.pointTable().layout());
-        
+
         std::ostream *out = FileUtils::createFile(m_PointCloudSchemaOutput);
         std::string xml(schema.xml());
         out->write(xml.c_str(), xml.size());

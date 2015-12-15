@@ -1,0 +1,24 @@
+{
+  "Pipeline": {
+    "Readers": [{
+      "type": "readers.las",
+      "options": {
+        "filename": "@CMAKE_SOURCE_DIR@/test/data/autzen/autzen-utm.las"
+      }
+    }],
+    "Filters": [{
+      "type": "filters.chipper",
+      "options": {
+        "capacity": 25
+      }
+    }, {
+      "type": "filters.merge"
+    }],
+    "Writers": [{
+      "type": "writers.las",
+      "options": {
+        "filename": "@CMAKE_SOURCE_DIR@/test/temp/autzen-utm-chipped-25.las"
+      }
+    }]
+  }
+}

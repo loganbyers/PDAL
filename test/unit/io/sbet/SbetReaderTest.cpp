@@ -35,7 +35,8 @@
 #include <pdal/pdal_test_main.hpp>
 
 #include <pdal/Options.hpp>
-#include <pdal/PipelineReader.hpp>
+#include <pdal/PipelineReaderJSON.hpp>
+#include <pdal/PipelineReaderXML.hpp>
 #include <pdal/PipelineManager.hpp>
 #include <pdal/PointView.hpp>
 
@@ -126,11 +127,22 @@ TEST(SbetReaderTest, testBadFile)
     EXPECT_THROW(reader->execute(table), pdal_error);
 }
 
-TEST(SbetReaderTest, testPipeline)
+TEST(SbetReaderTest, testPipelineXML)
 {
     PipelineManager manager;
-    PipelineReader reader(manager);
+    PipelineReaderXML reader(manager);
     reader.readPipeline(Support::configuredpath("sbet/pipeline.xml"));
+
+    point_count_t numPoints = manager.execute();
+    EXPECT_EQ(numPoints, 2u);
+    FileUtils::deleteFile(Support::datapath("sbet/outfile.txt"));
+}
+
+TEST(SbetReaderTest, testPipelineJSON)
+{
+    PipelineManager manager;
+    PipelineReaderJSON reader(manager);
+    reader.readPipeline(Support::configuredpath("sbet/pipeline.json"));
 
     point_count_t numPoints = manager.execute();
     EXPECT_EQ(numPoints, 2u);

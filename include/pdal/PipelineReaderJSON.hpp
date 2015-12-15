@@ -37,6 +37,8 @@
 #include <pdal/pdal_internal.hpp>
 #include <pdal/StageFactory.hpp>
 
+#include <json/json-forwards.h>
+
 #include <vector>
 #include <string>
 
@@ -47,48 +49,41 @@ namespace pdal
 class Options;
 class PipelineManager;
 
-class PDAL_DLL PipelineReader
+class PDAL_DLL PipelineReaderJSON
 {
 private:
     class StageParserContext;
 
 public:
-    PipelineReader(PipelineManager&, bool debug=false,
-        uint32_t verbose = 0);
+    PipelineReaderJSON(PipelineManager&, bool debug=false,
+                   uint32_t verbose = 0);
 
-    // Use this to fill in a pipeline manager with an XML file that
-    // contains a <Writer> as the last pipeline stage.
+    // Use this to fill in a pipeline manager with a JSON file that
+    // contains a Writer as the last pipeline stage.
     //
-    // returns true iff the xml file is a writer pipeline (otherwise it is
+    // returns true iff the JSON file is a writer pipeline (otherwise it is
     // assumed to be a reader pipeline)
     bool readPipeline(const std::string& filename);
     bool readPipeline(std::istream& input);
 
 private:
-    typedef std::map<std::string, std::string> map_t;
+    // typedef std::map<std::string, std::string> map_t;
 
-    bool parseElement_Pipeline(const boost::property_tree::ptree&);
-    Stage *parseElement_anystage(const std::string& name,
-        const boost::property_tree::ptree& subtree);
-    Stage *parseElement_Reader(const boost::property_tree::ptree& tree);
-    Stage *parseElement_Filter(const boost::property_tree::ptree& tree);
-    Stage *parseElement_Writer(const boost::property_tree::ptree& tree);
-    Option parseElement_Option(const boost::property_tree::ptree& tree);
-    void collect_attributes(map_t& attrs,
-        const boost::property_tree::ptree& tree);
-    void parse_attributes(map_t& attrs,
-        const boost::property_tree::ptree& tree);
+    bool parseElement_Pipeline(const Json::Value&);
+    Stage *parseElement_Reader(const Json::Value& tree);
+    Stage *parseElement_Filter(const Json::Value& tree);
+    Stage *parseElement_Writer(const Json::Value& tree);
+    Option parseElement_Option(const std::string& name, const Json::Value& tree);
 
 private:
     PipelineManager& m_manager;
     bool m_isDebug;
     uint32_t m_verboseLevel;
     Options m_baseOptions;
-    std::string m_inputXmlFile;
+    std::string m_inputJSONFile;
 
-    PipelineReader& operator=(const PipelineReader&); // not implemented
-    PipelineReader(const PipelineReader&); // not implemented
+    PipelineReaderJSON& operator=(const PipelineReaderJSON&); // not implemented
+    PipelineReaderJSON(const PipelineReaderJSON&); // not implemented
 };
 
 } // namespace pdal
-
