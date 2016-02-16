@@ -132,6 +132,8 @@ TEST(SbetReaderTest, testPipelineXML)
     PipelineManager manager;
     PipelineReaderXML reader(manager);
     reader.readPipeline(Support::configuredpath("sbet/pipeline.xml"));
+    // TODO(chambbj): bury PipelineReader inside of PipelineManager
+    // manager.readPipeline(Support::configuredpath("sbet/pipeline.xml"));
 
     point_count_t numPoints = manager.execute();
     EXPECT_EQ(numPoints, 2u);

@@ -35,8 +35,6 @@
 #include <pdal/pdal_test_main.hpp>
 
 #include <pdal/Options.hpp>
-#include <pdal/PipelineReader.hpp>
-#include <pdal/PipelineManager.hpp>
 #include <pdal/PointView.hpp>
 
 #include <Ilvis2Reader.hpp>
@@ -63,7 +61,8 @@ void checkPoint(const PointView& data, PointId index, double time,
 
 TEST(Ilvis2ReaderTest, testReadDefault)
 {
-    Option filename("filename", Support::datapath("ilvis2/ILVIS2_TEST_FILE.TXT"), "");
+    Option filename("filename",
+        Support::datapath("ilvis2/ILVIS2_TEST_FILE.TXT"));
     Options options(filename);
     std::shared_ptr<Ilvis2Reader> reader(new Ilvis2Reader);
     reader->setOptions(options);
@@ -97,7 +96,8 @@ TEST(Ilvis2ReaderTest, testReadDefault)
 
 TEST(Ilvis2ReaderTest, testReadHigh)
 {
-    Option filename("filename", Support::datapath("ilvis2/ILVIS2_TEST_FILE.TXT"), "");
+    Option filename("filename",
+        Support::datapath("ilvis2/ILVIS2_TEST_FILE.TXT"));
     Options options(filename);
     options.add("mapping","high");
     std::shared_ptr<Ilvis2Reader> reader(new Ilvis2Reader);

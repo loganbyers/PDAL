@@ -43,8 +43,6 @@
 
 #include <fstream>
 
-#include <boost/algorithm/string.hpp>
-
 #include <ogr_api.h>
 
 namespace pdal
@@ -346,7 +344,7 @@ bool OciWriter::blockTableExists()
     log()->get(LogLevel::Debug) << "checking ... " << szTable << std::endl;
     do
     {
-        if (boost::iequals(szTable, m_blockTableName))
+        if (Utils::iequals(szTable, m_blockTableName))
             return true;
     } while (statement->Fetch());
 
@@ -391,8 +389,8 @@ bool OciWriter::isGeographic(int32_t srid)
         throw std::runtime_error(oss.str());
     }
 
-    return (boost::iequals(kind.get(), "GEOGRAPHIC2D") ||
-        boost::iequals(kind.get(), "GEOGRAPHIC3D"));
+    std::string k = Utils::toupper(kind.get());
+    return ((k == "GEOGRAPHIC2D") || (k == "GEOGRAPHIC3D"));
 }
 
 
@@ -430,22 +428,17 @@ std::string OciWriter::loadSQLData(std::string const& filename)
 }
 
 
-void OciWriter::runFileSQL(std::string const& filename)
+void OciWriter::runFileSQL(std::string const& sql)
 {
-    std::ostringstream oss;
-    std::string sql = getOptions().getValueOrDefault<std::string>(filename);
-
-    if (!sql.size())
+    if (sql.empty())
         return;
 
+    std::ostringstream oss;
     if (!FileUtils::fileExists(sql))
         oss << sql;
     else
         // Our "sql" is really the filename in the ptree
         oss << loadSQLData(sql);
-
-    if (isDebug())
-        std::cout << "running "<< filename << " ..." <<std::endl;
     runCommand(oss);
 }
 
@@ -684,13 +677,13 @@ void OciWriter::processOptions(const Options& options)
     m_srid = options.getValueOrThrow<uint32_t>("srid");
     m_baseTableBounds =
         getDefaultedOption<BOX3D>(options, "base_table_bounds");
-    m_baseTableName = boost::to_upper_copy(
+    m_baseTableName = Utils::toupper(
         options.getValueOrThrow<std::string>("base_table_name"));
-    m_blockTableName = boost::to_upper_copy(
+    m_blockTableName = Utils::toupper(
         options.getValueOrThrow<std::string>("block_table_name"));
-    m_cloudColumnName = boost::to_upper_copy(
+    m_cloudColumnName = Utils::toupper(
         options.getValueOrThrow<std::string>("cloud_column_name"));
-    m_blockTablePartitionColumn = boost::to_upper_copy(
+    m_blockTablePartitionColumn = Utils::toupper(
         getDefaultedOption<std::string>(options,
             "block_table_partition_column"));
     m_blockTablePartitionValue =
@@ -719,6 +712,9 @@ void OciWriter::processOptions(const Options& options)
     if (m_compression && (m_orientation == Orientation::DimensionMajor))
         throw pdal_error("LAZperf compression not supported for "
             "dimension-major point storage.");
+
+    m_preSql = options.getValueOrDefault<std::string>("pre_sql");
+    m_postBlockSql = options.getValueOrDefault<std::string>("post_block_sql");
 }
 
 
@@ -771,7 +767,7 @@ void OciWriter::ready(PointTableRef table)
     bool haveOutputTable = blockTableExists();
     if (m_overwrite && haveOutputTable)
         wipeBlockTable();
-    runFileSQL("pre_sql");
+    runFileSQL(m_preSql);
     if (!haveOutputTable)
         createBlockTable();
 
@@ -799,7 +795,7 @@ void OciWriter::done(PointTableRef table)
     if (m_reenableCloudTrigger)
         turnOn_SDO_PC_Trigger(m_triggerName);
     m_connection->Commit();
-    runFileSQL("post_block_sql");
+    runFileSQL(m_postBlockSql);
 }
 
 
@@ -1063,7 +1059,7 @@ std::string OciWriter::shutOff_SDO_PC_Trigger()
         return std::string();
     }
 
-    if (boost::iequals(szStatus, "ENABLED"))
+    if (Utils::iequals(szStatus, "ENABLED"))
     {
         oss.str("");
         oss << "ALTER TRIGGER " << szTrigger << " DISABLE ";

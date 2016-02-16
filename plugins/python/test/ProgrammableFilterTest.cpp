@@ -124,6 +124,7 @@ TEST_F(ProgrammableFilterTest, pipelineXML)
     PipelineManager manager;
     PipelineReaderXML reader(manager);
 
+    // TODO(chambbj): bury PipelineReader inside of PipelineManager
     reader.readPipeline(
         Support::configuredpath("plang/programmable-update-y-dims.xml"));
     manager.execute();

@@ -73,14 +73,10 @@ vector<string> tokenize(const string s, char c)
 
 uint32_t parseInt(const string& s)
 {
-    try
-    {
-        return boost::lexical_cast<uint32_t>(s);
-    }
-    catch (boost::bad_lexical_cast)
-    {
+    uint32_t val;
+    if (!Utils::fromString(s, val))
         throw app_runtime_error(string("Invalid integer: ") + s);
-    }
+    return val;
 }
 
 
@@ -125,34 +121,13 @@ vector<uint32_t> getListOfPoints(std::string p)
 
 } //namespace
 
-ViewKernel::ViewKernel()
-    : Kernel()
-    , m_inputFile("")
-{}
 
-
-void ViewKernel::validateSwitches()
+void ViewKernel::addSwitches(ProgramArgs& args)
 {
-    if (m_inputFile == "")
-    {
-        throw app_usage_error("--input/-i required");
-    }
+    args.add("input,i", "Input filename", m_inputFile).setPositional();
+    args.add("point,p", "Point to dump", m_pointIndexes);
 }
 
-
-void ViewKernel::addSwitches()
-{
-    po::options_description* file_options = new po::options_description("file options");
-
-    file_options->add_options()
-    ("input,i", po::value<std::string>(&m_inputFile)->default_value(""), "input file name")
-    ("point,p", po::value<std::string >(&m_pointIndexes), "point to dump")
-    ;
-
-    addSwitchSet(file_options);
-
-    addPositionalSwitch("input", 1);
-}
 
 int ViewKernel::execute()
 {

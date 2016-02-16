@@ -41,8 +41,6 @@
 
 #include <boost/property_tree/xml_parser.hpp>
 #include <boost/optional.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/algorithm/string/trim.hpp>
 
 #ifndef _WIN32
 #include <wordexp.h>
@@ -51,7 +49,7 @@
 namespace pdal
 {
 
-using namespace boost::property_tree;
+using namespace pdalboost::property_tree;
 
 // ------------------------------------------------------------------------
 
@@ -161,7 +159,7 @@ Option PipelineReaderXML::parseElement_Option(const ptree& tree)
 
     std::string name = attrs["name"];
     std::string value = tree.get_value<std::string>();
-    boost::algorithm::trim(value);
+    Utils::trim(value);
     Option option(name, value);
 
     // filenames in the XML are fixed up as follows:
@@ -192,9 +190,7 @@ Option PipelineReaderXML::parseElement_Option(const ptree& tree)
     }
     else if (option.getName() == "plugin")
     {
-       PluginManager& pm = PluginManager::getInstance();
-       std::string path = option.getValue<std::string>();
-       pm.loadPlugin(path);
+       PluginManager::loadPlugin(option.getValue<std::string>());
     }
     return option;
 }
@@ -354,7 +350,7 @@ void PipelineReaderXML::parse_attributes(map_t& attrs, const ptree& tree)
     {
         std::string name = iter->first;
         std::string value = tree.get<std::string>(name);
-        boost::algorithm::trim(value);
+        Utils::trim(value);
 
         attrs[name] = value;
     }
@@ -430,6 +426,8 @@ bool PipelineReaderXML::parseElement_Pipeline(const ptree& tree)
     Stage *stage = NULL;
     Stage *writer = NULL;
 
+    Options o(m_baseOptions);
+
     map_t attrs;
     collect_attributes(attrs, tree);
 
@@ -482,7 +480,7 @@ bool PipelineReaderXML::readPipeline(std::istream& input)
 
     xml_parser::read_xml(input, tree, xml_parser::no_comments);
 
-    boost::optional<ptree> opt(tree.get_child_optional("Pipeline"));
+    pdalboost::optional<ptree> opt(tree.get_child_optional("Pipeline"));
     if (!opt.is_initialized())
         throw pdal_error("PipelineReaderXML: root element is not Pipeline");
     ptree subtree = opt.get();

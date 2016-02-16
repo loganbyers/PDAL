@@ -34,11 +34,9 @@
 
 #include "SortKernel.hpp"
 
-#include <pdal/BufferReader.hpp>
+#include <buffer/BufferReader.hpp>
 #include <pdal/KernelSupport.hpp>
 #include <pdal/StageFactory.hpp>
-
-#include <boost/program_options.hpp>
 
 namespace pdal
 {
@@ -60,36 +58,15 @@ SortKernel::SortKernel() : m_bCompress(false), m_bForwardMetadata(false)
 {}
 
 
-void SortKernel::validateSwitches()
+void SortKernel::addSwitches(ProgramArgs& args)
 {
-    if (m_inputFile == "")
-        throw app_usage_error("--input/-i required");
-    if (m_outputFile == "")
-        throw app_usage_error("--output/-o required");
-}
-
-
-void SortKernel::addSwitches()
-{
-    po::options_description* file_options =
-        new po::options_description("file options");
-
-    file_options->add_options()
-    ("input,i", po::value<std::string>(&m_inputFile)->default_value(""),
-     "input file name")
-    ("output,o", po::value<std::string>(&m_outputFile)->default_value(""),
-     "output file name")
-    ("compress,z",
-     po::value<bool>(&m_bCompress)->zero_tokens()->implicit_value(true),
-     "Compress output data (if supported by output format)")
-    ("metadata,m",
-     po::value< bool >(&m_bForwardMetadata)->implicit_value(true),
-     "Forward metadata (VLRs, header entries, etc) from previous stages")
-    ;
-
-    addSwitchSet(file_options);
-    addPositionalSwitch("input", 1);
-    addPositionalSwitch("output", 1);
+    args.add("input,i", "Input filename", m_inputFile).setPositional();
+    args.add("output,o", "Output filename", m_outputFile).setPositional();
+    args.add("compress,z",
+        "Compress output data (if supported by output format)", m_bCompress);
+    args.add("metadata,m",
+        "Forward metadata (VLRs, header entries, etc) from previous stages",
+        m_bForwardMetadata);
 }
 
 
@@ -165,7 +142,7 @@ int SortKernel::execute()
 
     // Some options are inferred by makeWriter based on filename
     // (compression, driver type, etc).
-    writer.setOptions(writerOptions + writer.getOptions());
+    writer.addOptions(writerOptions);
     writer.setUserCallback(callback);
 
     applyExtraStageOptionsRecursive(&writer);

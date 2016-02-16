@@ -10,7 +10,6 @@ set(PDAL_UTIL_HPP
     "${PDAL_INCLUDE_DIR}/pdal/util/Algorithm.hpp"
     "${PDAL_INCLUDE_DIR}/pdal/util/Bounds.hpp"
     "${PDAL_INCLUDE_DIR}/pdal/util/Charbuf.hpp"
-    "${PDAL_INCLUDE_DIR}/pdal/util/Endian.hpp"
     "${PDAL_INCLUDE_DIR}/pdal/util/Extractor.hpp"
     "${PDAL_INCLUDE_DIR}/pdal/util/FileUtils.hpp"
     "${PDAL_INCLUDE_DIR}/pdal/util/Georeference.hpp"
@@ -18,6 +17,7 @@ set(PDAL_UTIL_HPP
     "${PDAL_INCLUDE_DIR}/pdal/util/IStream.hpp"
     "${PDAL_INCLUDE_DIR}/pdal/util/OStream.hpp"
     "${PDAL_INCLUDE_DIR}/pdal/util/Utils.hpp"
+    "${PDAL_INCLUDE_DIR}/pdal/util/Uuid.hpp"
     )
 
 set(PDAL_UTIL_CPP
@@ -33,7 +33,7 @@ set(PDAL_UTIL_SOURCES
     ${PDAL_UTIL_HPP})
 
 PDAL_ADD_LIBRARY(${PDAL_UTIL_LIB_NAME} SHARED ${PDAL_UTIL_SOURCES})
-target_link_libraries(${PDAL_UTIL_LIB_NAME} ${Boost_LIBRARIES})
+target_link_libraries(${PDAL_UTIL_LIB_NAME} ${PDAL_BOOST_LIB_NAME})
 
 set_target_properties(${PDAL_UTIL_LIB_NAME} PROPERTIES
     VERSION "${PDAL_BUILD_VERSION}"

@@ -33,14 +33,12 @@
 * OF SUCH DAMAGE.
 ****************************************************************************/
 
-#include <boost/format.hpp>
-
 #include "PgWriter.hpp"
 
 #include <pdal/PointView.hpp>
 #include <pdal/StageFactory.hpp>
 #include <pdal/util/FileUtils.hpp>
-#include <pdal/util/Endian.hpp>
+#include <pdal/util/portable_endian.hpp>
 #include <pdal/XMLSchema.hpp>
 
 namespace pdal
@@ -169,7 +167,7 @@ void PgWriter::writeInit()
     // to execute. We find out which one here.
     if (m_pre_sql.size())
     {
-        std::string sql = FileUtils::readFileAsString(m_pre_sql);
+        std::string sql = FileUtils::readFileIntoString(m_pre_sql);
         if (!sql.size())
         {
             // if there was no file to read because the data in pre_sql was
@@ -214,7 +212,7 @@ void PgWriter::done(PointTableRef /*table*/)
 
     if (m_post_sql.size())
     {
-        std::string sql = FileUtils::readFileAsString(m_post_sql);
+        std::string sql = FileUtils::readFileIntoString(m_post_sql);
         if (!sql.size())
         {
             // if there was no file to read because the data in post_sql was
@@ -304,7 +302,31 @@ uint32_t PgWriter::SetupSchema(uint32_t srid)
     }
 
     if (schema_count == 0)
-        pcid = 1;
+    {
+        // Try using the sequence
+        // pgpointcloud with the sequence is not yet
+        // released. See https://github.com/PDAL/PDAL/issues/1101 for
+        // SQL to create this sequence on the pointcloud_formats
+        // table.
+        char* have_seq = pg_query_once(m_session,
+                "select count(*) from pg_class where relname = 'pointcloud_formats_pcid_sq'");
+        int seq_count = atoi(have_seq);
+        if (seq_count)
+        {
+            // We have the sequence, use its nextval
+            char *pcid_str = pg_query_once(m_session,
+                    "SELECT nextval('pointcloud_formats_pcid_sq') FROM pointcloud_formats");
+            if (!pcid_str)
+                throw pdal_error("Unable to select nextval from pointcloud_formats_pcid_seq");
+            pcid = atoi(pcid_str);
+        }
+        else
+        {
+            // We don't have the sequence installed, all we can do is
+            // set to 1 and increment
+            pcid = 1;
+        }
+    }
     else
     {
         char *pcid_str = pg_query_once(m_session,
@@ -331,17 +353,20 @@ uint32_t PgWriter::SetupSchema(uint32_t srid)
 void PgWriter::DeleteTable(std::string const& schema_name,
                          std::string const& table_name)
 {
-    std::ostringstream oss;
+    std::ostringstream stmt;
+    std::ostringstream name;
 
-    oss << "DROP TABLE IF EXISTS ";
+    stmt << "DROP TABLE IF EXISTS ";
 
     if (schema_name.size())
     {
-        oss << schema_name << ".";
+        name << schema_name << ".";
     }
-    oss << table_name;
+    name << table_name;
+    stmt << pg_quote_identifier(name.str());
 
-    pg_execute(m_session, oss.str());
+
+    pg_execute(m_session, stmt.str());
 }
 
 
@@ -481,28 +506,23 @@ void PgWriter::writeTile(const PointViewPtr view)
 
     std::ostringstream options;
 
-    uint32_t num_points = view->size();
-    int32_t pcid = m_pcid;
+    uint32_t num_points = htobe32(view->size());
+    int32_t pcid = htobe32(m_pcid);
     CompressionType::Enum compression_v = CompressionType::None;
-    uint32_t compression = static_cast<uint32_t>(compression_v);
+    uint32_t compression = htobe32(static_cast<uint32_t>(compression_v));
 
-#ifdef BOOST_LITTLE_ENDIAN
-    // needs to be 1 byte
-    options << boost::format("%02x") % 1;
-    SWAP_ENDIANNESS(pcid);
-    SWAP_ENDIANNESS(compression);
-    SWAP_ENDIANNESS(num_points);
-#elif BOOST_BIG_ENDIAN
-    // needs to be 1 byte
-    options << boost::format("%02x") % 0;
+#if BYTE_ORDER == LITTLE_ENDIAN
+    options << "01";
+#elif BYTE_ORDER == BIG_ENDIAN
+    options << "00";
 #endif
 
     // needs to be 4 bytes
-    options << boost::format("%08x") % pcid;
+    options << std::hex << std::setfill('0') << std::setw(8) << pcid;
     // needs to be 4 bytes
-    options << boost::format("%08x") % compression;
+    options << std::hex << std::setfill('0') << std::setw(8) << compression;
     // needs to be 4 bytes
-    options << boost::format("%08x") % num_points;
+    options << std::hex << std::setfill('0') << std::setw(8) << num_points;
 
     m_insert.append(options.str());
     m_insert.append(hexrep);

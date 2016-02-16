@@ -355,6 +355,8 @@ TEST_F(PredicateFilterTest, PredicateFilterTest_test5)
     ASSERT_THROW(filter->execute(table), pdal::pdal_error);
 }
 
+// TODO(chambbj): in each of these tests, we should bury PipelineReader inside
+// of PipelineManager
 TEST_F(PredicateFilterTest, PredicateFilterTest_PipelineXML)
 {
     PipelineManager mgr;

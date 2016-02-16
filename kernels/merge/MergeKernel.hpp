@@ -35,7 +35,6 @@
 #pragma once
 
 #include <pdal/Kernel.hpp>
-#include <pdal/plugin.hpp>
 
 extern "C" int32_t MergeKernel_ExitFunc();
 extern "C" PF_ExitFunc MergeKernel_InitPlugin();
@@ -52,8 +51,8 @@ public:
     int execute();
 
 private:
-    void addSwitches();
-    void validateSwitches();
+    void addSwitches(ProgramArgs& args);
+    void validateSwitches(ProgramArgs& args);
 
     StringList m_files;
     std::string m_outputFile;

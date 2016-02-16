@@ -32,207 +32,26 @@
 * OF SUCH DAMAGE.
 ****************************************************************************/
 
-#include <pdal/GlobalEnvironment.hpp>
-#include <pdal/Kernel.hpp>
-#include <pdal/PDALUtils.hpp>
-
 #include <cctype>
 #include <iostream>
 
-#include <boost/algorithm/string.hpp>
-
 #include <pdal/pdal_config.hpp>
+#include <pdal/GlobalEnvironment.hpp>
+#include <pdal/Kernel.hpp>
 #include <pdal/Options.hpp>
+#include <pdal/PDALUtils.hpp>
 #include <pdal/StageFactory.hpp>
+#include <pdal/util/ProgramArgs.hpp>
 
 #include <pdal/pdal_config.hpp>
 
-#include <pdal/BufferReader.hpp>
+#include <buffer/BufferReader.hpp>
 
 #include <memory>
 #include <vector>
 
-#include <boost/tokenizer.hpp>
-typedef boost::tokenizer<boost::char_separator<char>> tokenizer;
-
-namespace po = boost::program_options;
-
 namespace pdal
 {
-
-Kernel::Kernel()
-    : m_usestdin(false)
-    , m_log("pdal", "stderr")
-    , m_isDebug(false)
-    , m_verboseLevel(0)
-    , m_showHelp(false)
-    , m_showVersion(false)
-    , m_showTime(false)
-    , m_hardCoreDebug(false)
-    , m_reportDebug(false)
-    , m_visualize(false)
-{}
-
-
-Kernel::~Kernel()
-{
-    for (auto & iter : m_public_options)
-    {
-        delete iter;
-    }
-    for (auto & iter : m_hidden_options)
-    {
-        delete iter;
-    }
-}
-
-std::ostream& operator<<(std::ostream& ostr, const Kernel& kernel)
-{
-    ostr << "  Name: " << kernel.getName() << std::endl;
-    return ostr;
-}
-
-
-int Kernel::do_switches()
-{
-    try
-    {
-        // add -h, -v, etc
-        addBasicSwitchSet();
-
-        // add the options for the derived application
-        addSwitches();
-
-        // parse the command line
-        parseSwitches();
-    }
-    catch (std::exception const& e)
-    {
-        Utils::printError(e.what());
-        return 1;
-    }
-    catch (...)
-    {
-        Utils::printError("Caught unknown exception handling switches");
-        return 1;
-    }
-    return 0;
-}
-
-
-int Kernel::do_startup()
-{
-    try
-    {
-        pdal::GlobalEnvironment::startup();
-    }
-    catch (std::exception const& e)
-    {
-        const std::string s("Caught exception in initialization: ");
-        Utils::printError(s + e.what());
-        return 1;
-    }
-    catch (...)
-    {
-        Utils::printError("Caught unknown exception in initialization");
-        return 1;
-    }
-
-    return 0;
-}
-
-
-int Kernel::do_execution()
-{
-
-    if (m_reportDebug)
-    {
-        std::cout << getPDALDebugInformation() << std::endl;
-        return 0;
-    }
-
-    if (m_hardCoreDebug)
-    {
-        int status = innerRun();
-        return status;
-    }
-
-    int status = 1;
-
-    try
-    {
-        status = innerRun();
-    }
-    catch (pdal::pdal_error const& e)
-    {
-        Utils::printError(e.what());
-        return 1;
-    }
-    catch (std::exception const& e)
-    {
-        Utils::printError(e.what());
-        return 1;
-    }
-    catch (...)
-    {
-        Utils::printError("Caught unexpected exception.");
-        return 1;
-    }
-
-    return status;
-}
-
-
-int Kernel::do_shutdown()
-{
-    try
-    {
-        pdal::GlobalEnvironment::shutdown();
-    }
-    catch (std::exception const& e)
-    {
-        const std::string s("Caught exception during shutdown: ");
-        Utils::printError(s + e.what());
-        return 1;
-    }
-    catch (...)
-    {
-        Utils::printError("Caught unknown exception during shutdown.");
-        return 1;
-    }
-
-    return 0;
-}
-
-
-// this just wraps ALL the code in total catch block
-int Kernel::run(int argc, const char* argv[], const std::string& appName)
-{
-    m_argc = argc;
-    m_argv = argv;
-    m_appName = appName;
-
-    int switches_status = do_switches();
-    if (switches_status)
-        return switches_status;
-
-    int startup_status = do_startup();
-    if (startup_status)
-        return startup_status;
-
-    int execution_status = do_execution();
-
-    // note we will try to shutdown cleanly even if we got an error condition
-    // in the execution phase
-
-    int shutdown_status = do_shutdown();
-
-    if (execution_status)
-        return execution_status;
-
-    return shutdown_status;
-}
-
 
 namespace
 {
@@ -248,24 +67,35 @@ bool parseOption(std::string o, std::string& stage, std::string& option,
     o = o.substr(2);
 
     // Options are stage_type.stage_name.option_name
-    // stage_type and stage_name are always lowercase.  Option name starts
-    // with lowercase and then contains lowercase, numbers or underscore.
+    // stage_type is always lowercase stage_names start with lowercase and
+    // then are lowercase or digits.  Option names start with lowercase and
+    // then contain lowercase, digits or underscore.
 
     // This awfulness is to work around the multiply-defined islower.  Seems
     // a bit better than the cast solution.
     auto islc = [](char c)
         { return std::islower(c); };
+    auto islcOrDigit = [](char c)
+        { return std::islower(c) || std::isdigit(c); };
 
     std::string::size_type pos = 0;
     std::string::size_type count = 0;
+
     // Get stage_type.
     count = Utils::extract(o, pos, islc);
     pos += count;
+
+    std::string stage_type = o.substr(0, pos);
+    if (stage_type != "readers" && stage_type != "writers" &&
+        stage_type != "filters")
+        return false;
     if (o[pos++] != '.')
         return false;
 
     // Get stage_name.
-    count = Utils::extract(o, pos, islc);
+    count = Utils::extract(o, pos, islcOrDigit);
+    if (std::isdigit(o[pos]))
+        return false; 
     pos += count;
     stage = o.substr(0, pos);
     if (o[pos++] != '.')
@@ -289,6 +119,185 @@ bool parseOption(std::string o, std::string& stage, std::string& option,
 } // unnamed namespace
 
 
+Kernel::Kernel()
+    : m_usestdin(false)
+    , m_log("pdal", "stderr")
+    , m_isDebug(false)
+    , m_verboseLevel(0)
+    , m_showVersion(false)
+    , m_showTime(false)
+    , m_hardCoreDebug(false)
+    , m_reportDebug(false)
+    , m_visualize(false)
+{}
+
+
+std::ostream& operator<<(std::ostream& ostr, const Kernel& kernel)
+{
+    ostr << "  Name: " << kernel.getName() << std::endl;
+    return ostr;
+}
+
+
+void Kernel::doSwitches(int argc, const char *argv[], ProgramArgs& args)
+{
+    StringList stringArgs;
+
+    // Scan the argument vector for extra stage options.  Pull them out and
+    // stick them in the list.  Let the ProgramArgs handle everything else.
+    // NOTE: This depends on the format being "option=value" rather than
+    //   "option value".  This is what we've always expected, so no problem,
+    //   but it would be better to be more flexible.
+    for (int i = 0; i < argc; ++i)
+    {
+        std::string stageName, opName, value;
+
+        if (parseOption(argv[i], stageName, opName, value))
+        {
+            Option op(opName, value);
+            m_extraStageOptions[stageName].add(op);
+        }
+        else
+            stringArgs.push_back(argv[i]);
+    }
+
+    try
+    {
+        addBasicSwitches(args);
+
+        // parseSimple allows us to scan for the help option without
+        // raising exception about missing arguments and so on.
+        args.parseSimple(stringArgs);
+        addSwitches(args);
+        if (!m_showHelp)
+            args.parse(stringArgs);
+    }
+    catch (arg_error& e)
+    {
+        throw pdal_error(e.m_error);
+    }
+}
+
+
+int Kernel::doStartup()
+{
+    try
+    {
+        pdal::GlobalEnvironment::startup();
+    }
+    catch (std::exception const& e)
+    {
+        const std::string s("Caught exception in initialization: ");
+        Utils::printError(s + e.what());
+        return 1;
+    }
+    catch (...)
+    {
+        Utils::printError("Caught unknown exception in initialization");
+        return 1;
+    }
+
+    return 0;
+}
+
+
+int Kernel::doExecution(ProgramArgs& args)
+{
+    if (m_hardCoreDebug)
+    {
+        int status = innerRun(args);
+        return status;
+    }
+
+    int status = 1;
+
+    try
+    {
+        status = innerRun(args);
+    }
+    catch (pdal::pdal_error const& e)
+    {
+        Utils::printError(e.what());
+        return 1;
+    }
+    catch (std::exception const& e)
+    {
+        Utils::printError(e.what());
+        return 1;
+    }
+    catch (...)
+    {
+        Utils::printError("Caught unexpected exception.");
+        return 1;
+    }
+
+    return status;
+}
+
+
+int Kernel::doShutdown()
+{
+    try
+    {
+        pdal::GlobalEnvironment::shutdown();
+    }
+    catch (std::exception const& e)
+    {
+        const std::string s("Caught exception during shutdown: ");
+        Utils::printError(s + e.what());
+        return 1;
+    }
+    catch (...)
+    {
+        Utils::printError("Caught unknown exception during shutdown.");
+        return 1;
+    }
+
+    return 0;
+}
+
+
+// this just wraps ALL the code in total catch block
+int Kernel::run(int argc, char const * argv[], const std::string& appName)
+{
+    m_appName = appName;
+
+    ProgramArgs args;
+
+    try
+    {
+        doSwitches(argc, argv, args);
+    }
+    catch (const pdal_error& e)
+    {
+        Utils::printError(e.what());
+        return 1;
+    }
+
+    if (m_showHelp)
+    {
+        outputHelp(args);
+        return 0;
+    }
+
+    int startup_status = doStartup();
+    if (startup_status)
+        return startup_status;
+
+    int execution_status = doExecution(args);
+
+    // note we will try to shutdown cleanly even if we got an error condition
+    // in the execution phase
+
+    int shutdown_status = doShutdown();
+
+    if (execution_status)
+        return execution_status;
+
+    return shutdown_status;
+}
+
+
 void Kernel::collectExtraOptions()
 {
     for (const auto& o : m_extra_options)
@@ -304,48 +313,21 @@ void Kernel::collectExtraOptions()
 }
 
 
-bool Kernel::argumentSpecified(const std::string& name)
+int Kernel::innerRun(ProgramArgs& args)
 {
-    auto ai = m_variablesMap.find(name);
-    if (ai == m_variablesMap.end())
-        return false;
-    return !(ai->second.defaulted());
-}
-
-
-int Kernel::innerRun()
-{
-    // handle the well-known options
-    if (m_showVersion)
-    {
-        outputVersion();
-        return 0;
-    }
-
-    if (m_showHelp)
-    {
-        outputHelp();
-        return 0;
-    }
-
-    if (!m_showOptions.empty())
-    {
-        return 0;
-    }
-
     try
     {
         // do any user-level sanity checking
-        validateSwitches();
-        collectExtraOptions();
+        validateSwitches(args);
     }
-    catch (app_usage_error e)
+    catch (pdal_error e)
     {
-        Utils::printError(std::string("Usage error: ") + e.what());
-        outputHelp();
-        return 1;
+        Utils::printError(e.what());
+        outputHelp(args);
+        return -1;
     }
 
+    collectExtraOptions();
     return execute();
 }
 
@@ -427,20 +409,6 @@ void Kernel::visualize(PointViewPtr input_view, PointViewPtr output_view) const
 */
 
 
-void Kernel::addSwitchSet(po::options_description* options)
-{
-    if (options)
-        m_public_options.push_back(options);
-}
-
-
-void Kernel::addHiddenSwitchSet(po::options_description* options)
-{
-    if (options)
-        m_hidden_options.push_back(options);
-}
-
-
 void Kernel::setCommonOptions(Options &options)
 {
     options.add("visualize", m_visualize);
@@ -456,167 +424,101 @@ void Kernel::setCommonOptions(Options &options)
         options.add("log", "STDERR");
     }
 
-    boost::char_separator<char> sep(",| ");
+    auto pred = [](char c){ return (bool)strchr(",| ", c); };
 
-    if (argumentExists("scale"))
+    if (!m_scales.empty())
     {
         std::vector<double> scales;
-        tokenizer scale_tokens(m_scales, sep);
-        for (auto const& t : scale_tokens)
-            scales.push_back(boost::lexical_cast<double>(t));
-        if (scales.size())
+        StringList scaleTokens = Utils::split2(m_scales, pred);
+        for (std::string s : scaleTokens)
         {
-            if (scales.size() <= 1)
+            double val;
+
+            if (Utils::fromString(s, val))
+                scales.push_back(val);
+            else
             {
-                options.add<double >("scale_x", scales[0]);
-            }
-            else if (scales.size() <= 2)
-            {
-                options.add<double >("scale_x", scales[0]);
-                options.add<double >("scale_y", scales[1]);
-            }
-            else if (scales.size() <= 3)
-            {
-                options.add<double >("scale_x", scales[0]);
-                options.add<double >("scale_y", scales[1]);
-                options.add<double >("scale_z", scales[2]);
+                std::ostringstream oss;
+                oss << getName() << ": Invalid scale value '" << s << "'." <<
+                    std::endl;
+                throw pdal_error(oss.str());
             }
         }
+        if (scales.size() > 0)
+            options.add("scale_x", scales[0]);
+        if (scales.size() > 1)
+            options.add("scale_y", scales[1]);
+        if (scales.size() > 2)
+            options.add("scale_z", scales[2]);
     }
 
-    if (argumentExists("offset"))
+    if (!m_offsets.empty())
     {
-        std::vector<std::string> offsets;
-        tokenizer offset_tokens(m_offsets, sep);
-        for (auto const& t : offset_tokens)
-            offsets.push_back(boost::lexical_cast<std::string>(t));
-        if (offsets.size())
+        std::vector<double> offsets;
+        StringList offsetTokens = Utils::split2(m_offsets, pred);
+        for (std::string o : offsetTokens)
         {
-            if (offsets.size() <= 1)
+            double val;
+
+            if (Utils::fromString(o, val))
+                offsets.push_back(val);
+            else
             {
-                options.add<std::string>("offset_x", offsets[0]);
-            }
-            else if (offsets.size() <= 2)
-            {
-                options.add<std::string>("offset_x", offsets[0]);
-                options.add<std::string>("offset_y", offsets[1]);
-            }
-            else if (offsets.size() <= 3)
-            {
-                options.add<std::string>("offset_x", offsets[0]);
-                options.add<std::string>("offset_y", offsets[1]);
-                options.add<std::string>("offset_z", offsets[2]);
+                std::ostringstream oss;
+                oss << getName() << ": Invalid offset value '" << o << "'." <<
+                    std::endl;
+                throw pdal_error(oss.str());
             }
         }
+        if (offsets.size() > 0)
+            options.add("offset_x", offsets[0]);
+        if (offsets.size() > 1)
+            options.add("offset_y", offsets[1]);
+        if (offsets.size() > 2)
+            options.add("offset_z", offsets[2]);
     }
 }
 
 
-void Kernel::addPositionalSwitch(const char* name, int max_count)
+void Kernel::outputHelp(ProgramArgs& args)
 {
-    m_positionalOptions.add(name, max_count);
-}
+    std::cout << "usage: " << "pdal " << m_appName << " [options] " <<
+        args.commandLine() << std::endl;
 
+    std::cout << "options:" << std::endl;
+    args.dump(std::cout, 2, Utils::screenWidth());
 
-void Kernel::outputHelp()
-{
-    outputVersion();
-
-    for (auto const& iter : m_public_options)
-    {
-        std::cout << *iter;
-        std::cout << std::endl;
-    }
+    //ABELL - Fix me.
 
     std::cout <<"\nFor more information, see the full documentation for "
-        "PDAL at http://pdal.io/\n" << std::endl << std::endl;
+        "PDAL at http://pdal.io/\n" << std::endl;
 }
 
 
-void Kernel::outputVersion()
+void Kernel::addBasicSwitches(ProgramArgs& args)
 {
-    std::cout << "pdal " << m_appName << " (" <<
-        GetFullVersionString() << ")\n";
-    std::cout << std::endl;
-}
+    args.add("help,h", "Print help message", m_showHelp);
 
+    args.add("debug,d", "Enable debug mode", m_isDebug);
+    args.add("developer-debug",
+        "Enable developer debug (don't trap exceptions)", m_hardCoreDebug);
+    args.add("label", "A string to label the process with", m_label);
+    args.add("verbose,v", "Set verbose message level", m_verboseLevel);
 
-void Kernel::addBasicSwitchSet()
-{
-    po::options_description* basic_options =
-        new po::options_description("basic options");
-
-    basic_options->add_options()
-    ("help,h",
-        po::value<bool>(&m_showHelp)->zero_tokens()->implicit_value(true),
-        "Print help message")
-    ("options", po::value<std::string>(&m_showOptions)->implicit_value("all"),
-        "Show available options for a driver")
-    ("debug,d",
-        po::value<bool>(&m_isDebug)->zero_tokens()->implicit_value(true),
-        "Enable debug mode")
-    ("report-debug",
-        po::value<bool>(&m_reportDebug)->zero_tokens()->implicit_value(true),
-        "Report PDAL compilation DEBUG status")
-    ("developer-debug",
-        po::value<bool>(&m_hardCoreDebug)->zero_tokens()->implicit_value(true),
-        "Enable developer debug mode (don't trap exceptions so segfaults "
-        "are thrown)")
-    ("label",
-        po::value<std::string>(&m_label)->default_value(""),
-        "A string to label the process with")
-    ("verbose,v", po::value<uint32_t>(&m_verboseLevel)->default_value(0),
-        "Set verbose message level")
-    ("version",
-        po::value<bool>(&m_showVersion)->zero_tokens()->implicit_value(true),
-        "Show version info")
-    ("visualize",
-        po::value<bool>(&m_visualize)->zero_tokens()->implicit_value(true),
-        "Visualize result")
-    ("stdin,s",
-        po::value<bool>(&m_usestdin)->zero_tokens()->implicit_value(true),
-        "Read pipeline XML from stdin")
-    ("heartbeat",
-        po::value< std::vector<std::string> >(&m_heartbeat_shell_command),
-        "Shell command to run for every progress heartbeat")
-    ("scale", po::value< std::string >(&m_scales),
+    args.add("visualize", "Visualize result", m_visualize);
+    args.add("stdin,s", "Read pipeline XML from stdin", m_usestdin);
+    /**
+    args.add("heartbeat", "Shell command to run for every progress heartbeat",
+        m_heartbeat_shell_command);
+    **/
+    args.add("scale",
          "A comma-separated or quoted, space-separated list of scales to "
          "set on the output file: \n--scale 0.1,0.1,0.00001\n--scale \""
-         "0.1 0.1 0.00001\"")
-    ("offset", po::value< std::string >(&m_offsets),
+         "0.1 0.1 0.00001\"", m_scales);
+    args.add("offset",
          "A comma-separated or quoted, space-separated list of offsets to "
          "set on the output file: \n--offset 0,0,0\n--offset "
-         "\"1234 5678 91011\"")
-    ;
-
-    addSwitchSet(basic_options);
-}
-
-
-void Kernel::parseSwitches()
-{
-    po::options_description options;
-
-    for (auto const& iter : m_public_options)
-        options.add(*iter);
-    for (auto const& iter : m_hidden_options)
-        options.add(*iter);
-
-    try
-    {
-        auto parsed = po::command_line_parser(m_argc, m_argv).
-            options(options).allow_unregistered().
-            positional(m_positionalOptions).run();
-        m_extra_options = po::collect_unrecognized(parsed.options,
-            po::include_positional);
-
-        po::store(parsed, m_variablesMap);
-    }
-    catch (boost::program_options::unknown_option e)
-    {
-        throw app_usage_error("unknown option: " + e.get_option_name());
-    }
-    po::notify(m_variablesMap);
+         "\"1234 5678 91011\"", m_offsets);
 }
 
 
@@ -658,10 +560,16 @@ Stage& Kernel::makeWriter(const std::string& outputFile, Stage& parent)
     }
     ownStage(writer);
     writer->setInput(parent);
-    writer->setOptions(options + writer->getOptions());
+    writer->addOptions(options);
 
     return *writer;
 }
 
-} // namespace pdal
 
+bool Kernel::test_parseOption(std::string o, std::string& stage,
+    std::string& option, std::string& value)
+{
+    return parseOption(o, stage, option, value);
+}
+
+} // namespace pdal

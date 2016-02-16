@@ -34,8 +34,6 @@
 
 #include <pdal/pdal_test_main.hpp>
 
-#include <boost/uuid/uuid_io.hpp>
-
 #include <pdal/PointView.hpp>
 #include <pdal/PipelineManager.hpp>
 #include <pdal/PipelineReaderJSON.hpp>
@@ -131,6 +129,10 @@ TEST(NitfReaderTest, test_chipperXML)
     PipelineManager mgr;
     PipelineReaderXML specReader(mgr);
     specReader.readPipeline(Support::configuredpath("nitf/chipper.xml"));
+    // TODO(chambbj): it has been suggested that we bury the PipelineReader
+    // inside of PipelineManager
+    //mgr.readPipeline(Support::configuredpath("nitf/chipper.xml"));
+
     //ABELL - need faux writer or something.
     /**
     mgr.execute();

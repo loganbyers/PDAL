@@ -32,14 +32,12 @@
 * OF SUCH DAMAGE.
 ****************************************************************************/
 
-#include <boost/algorithm/string/erase.hpp>
-#include <boost/filesystem.hpp>
-
 #include <pdal/util/Utils.hpp>
 
 #include <cassert>
 #include <cstdlib>
 #include <cctype>
+#include <memory>
 #include <random>
 
 #ifndef _WIN32
@@ -51,18 +49,12 @@
 #  pragma warning(disable: 4127)  // conditional expression is constant
 #endif
 
-#if !defined(_WIN32)
-#include <dlfcn.h>
-#define DLL_LOAD_UNIX
-#else
-#include <windows.h>
-#define DLL_LOAD_WINDOWS
-#endif
-
 #include <stdio.h>
 #include <iomanip>
 
-using namespace std;
+//using namespace std;
+
+typedef std::vector<std::string> StringList;
 
 namespace pdal
 {
@@ -107,55 +99,18 @@ double Utils::normal(const double& mean, const double& sigma, uint32_t seed)
 }
 
 
-void* Utils::registerPlugin(void* stageFactoryPtr, string const& filename,
-    string const& registerMethod, string const& versionMethod)
-{
-    void* pRegister;
-    void* pVersion;
-
-    pVersion = Utils::getDLLSymbol(filename, versionMethod);
-
-    int plugins_version = ((int (*)()) pVersion)();
-
-    if (plugins_version != PDAL_PLUGIN_VERSION)
-    {
-        ostringstream oss;
-        oss << "Unable to register shared library '" << filename <<
-            "' with method name '" << registerMethod <<
-            "' version of plugin, '" << plugins_version <<
-            "' did not match PDALs version '" << PDAL_PLUGIN_VERSION << "'";
-        throw pdal_error(oss.str());
-    }
-
-
-    pRegister = Utils::getDLLSymbol(filename, registerMethod);
-    if (pRegister != NULL)
-    {
-        ((void (*)(void*)) pRegister)(stageFactoryPtr);
-    }
-    else
-    {
-        ostringstream oss;
-        oss << "Unable to register shared library '" << filename <<
-            "' with method name '" << registerMethod << "'";
-        throw pdal_error(oss.str());
-    }
-
-    return pRegister;
-}
-
-
 char* Utils::getenv(const char* env)
 {
     return ::getenv(env);
 }
 
 
-string Utils::getenv(string const& name)
+std::string Utils::getenv(std::string const& name)
 {
     char* value = ::getenv(name.c_str());
-    return value ? string(value) : string();
+    return value ? std::string(value) : std::string();
 }
+
 
 int Utils::putenv(const char* env)
 {
@@ -166,7 +121,8 @@ int Utils::putenv(const char* env)
 #endif
 }
 
-void Utils::eatwhitespace(istream& s)
+
+void Utils::eatwhitespace(std::istream& s)
 {
     while (true)
     {
@@ -208,7 +164,7 @@ void Utils::trimTrailing(std::string& s)
 }
 
 
-bool Utils::eatcharacter(istream& s, char x)
+bool Utils::eatcharacter(std::istream& s, char x)
 {
     const char c = (char)s.peek();
     if (c != x)
@@ -226,117 +182,12 @@ uint32_t Utils::getStreamPrecision(double scale)
     double integer = 0;
 
     frac = modf(scale, &integer);
-    return abs(floorl(log10(frac)));
-}
-
-void* Utils::getDLLSymbol(string const& library, string const& name)
-{
-    // Completely stolen from GDAL.
-    /***************************************************************************
-     * $Id: cplgetsymbol.cpp 16702 2009-04-01 20:42:49Z rouault $
-     *
-     * Project:  Common Portability Library
-     * Purpose:  Fetch a function pointer from a shared library / DLL.
-     * Author:   Frank Warmerdam, warmerdam@pobox.com
-     *
-     ***************************************************************************
-     * Copyright (c) 1999, Frank Warmerdam
-     *
-     * Permission is hereby granted, free of charge, to any person obtaining a
-     * copy of this software and associated documentation files
-     * (the "Software"),
-     * to deal in the Software without restriction, including without limitation
-     * the rights to use, copy, modify, merge, publish, distribute, sublicense,
-     * and/or sell copies of the Software, and to permit persons to whom the
-     * Software is furnished to do so, subject to the following conditions:
-     *
-     * The above copyright notice and this permission notice shall be included
-     * in all copies or substantial portions of the Software.
-     *
-     * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-     * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-     * MERCHANTABILITY,
-     * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-     * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-     * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-     * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-     * OTHER DEALINGS IN THE SOFTWARE.
-     ****************************************************************************/
-
-    void* pLibrary = NULL;
-    void* pSymbol = NULL;
-
-#ifdef DLL_LOAD_UNIX
-    pLibrary = dlopen(library.c_str(), RTLD_LAZY);
-    if (pLibrary == NULL)
-    {
-        ostringstream oss;
-        oss << "Unable to open '" << library <<"' with error " << dlerror();
-        throw pdal_error(oss.str());
-    }
-
-    pSymbol = dlsym(pLibrary, name.c_str());
-#if (defined(__APPLE__) && defined(__MACH__))
-    /* On mach-o systems, C symbols have a leading underscore and depending
-     * on how dlcompat is configured it may or may not add the leading
-     * underscore.  So if dlsym() fails add an underscore and try again.
-     */
-    if (pSymbol == NULL)
-    {
-        ostringstream prefixed;
-        prefixed << "_" << name;
-        pSymbol = dlsym(pLibrary, prefixed.str().c_str());
-    }
-#endif
-
-    if (pSymbol == NULL)
-    {
-        ostringstream oss;
-        oss << "Opened library '" << library << "', but unable to open symbol "
-            "'" << name << "' with error " << dlerror();
-        throw pdal_error(oss.str());
-    }
-
-#endif
-
-#ifdef DLL_LOAD_WINDOWS
-
-    pLibrary = LoadLibrary(library.c_str());
-    if (pLibrary == NULL)
-    {
-        LPVOID      lpMsgBuf = NULL;
-        int         nLastError = GetLastError();
-
-        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER
-                      | FORMAT_MESSAGE_FROM_SYSTEM
-                      | FORMAT_MESSAGE_IGNORE_INSERTS,
-                      NULL, nLastError,
-                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                      (LPTSTR) &lpMsgBuf, 0, NULL);
-
-        ostringstream oss;
-        oss << "Can't load requested DLL '" << library <<
-            " with error code " << nLastError <<
-            " and message \"" << (const char *) lpMsgBuf <<"\"";
-        throw pdal_error(oss.str());
-    }
-
-    pSymbol = (void *) GetProcAddress((HINSTANCE) pLibrary, name.c_str());
-
-    if (pSymbol == NULL)
-    {
-        ostringstream oss;
-        oss << "Can't find requested entry point '" << name <<"'";
-        throw pdal_error(oss.str());
-    }
-
-
-#endif
-    return pSymbol;
+    return std::abs(floorl(log10(frac)));
 }
 
 
-string Utils::base64_encode(const unsigned char *bytes_to_encode, size_t in_len)
+std::string Utils::base64_encode(const unsigned char *bytes_to_encode,
+    size_t in_len)
 {
 
     /*
@@ -367,13 +218,13 @@ string Utils::base64_encode(const unsigned char *bytes_to_encode, size_t in_len)
     */
 
     if (in_len == 0)
-        return string();
+        return std::string();
 
-    const string base64_chars =
+    const std::string base64_chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
         "0123456789+/";
-    string ret;
+    std::string ret;
     int i = 0;
     int j = 0;
     uint8_t char_array_3[3];
@@ -425,19 +276,19 @@ static inline bool is_base64(unsigned char c)
 }
 
 
-vector<uint8_t> Utils::base64_decode(string const& encoded_string)
+std::vector<uint8_t> Utils::base64_decode(std::string const& encoded_string)
 {
-    const string base64_chars =
+    const std::string base64_chars =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
         "abcdefghijklmnopqrstuvwxyz"
         "0123456789+/";
 
-    string::size_type in_len = encoded_string.size();
+    std::string::size_type in_len = encoded_string.size();
     int i = 0;
     int j = 0;
     int in_ = 0;
     unsigned char char_array_4[4], char_array_3[3];
-    vector<uint8_t> ret;
+    std::vector<uint8_t> ret;
 
     while (in_len-- && (encoded_string[in_] != '=') &&
         is_base64(encoded_string[in_]))
@@ -484,10 +335,10 @@ vector<uint8_t> Utils::base64_decode(string const& encoded_string)
     return ret;
 }
 
-FILE* Utils::portable_popen(const string& command, const string& mode)
+FILE* Utils::portable_popen(const std::string& command, const std::string& mode)
 {
 #ifdef _WIN32
-    const string dos_command = Utils::replaceAll(command, "/", "\\");
+    const std::string dos_command = Utils::replaceAll(command, "/", "\\");
     return _popen(dos_command.c_str(), mode.c_str());
 #else
     return popen(command.c_str(), mode.c_str());
@@ -504,7 +355,7 @@ int Utils::portable_pclose(FILE* fp)
     status = pclose(fp);
     if (status == -1)
     {
-        throw runtime_error("error executing command");
+        throw std::runtime_error("error executing command");
     }
     if (WIFEXITED(status) != 0)
     {
@@ -520,30 +371,14 @@ int Utils::portable_pclose(FILE* fp)
 }
 
 
-// BUG:
-// Under unix, the pclose() operation causes the boost unit test system
-// to produce a fatal error iff the process started by popen returns a
-// nonzero status code.  For this reason, I've put all the "negative"
-// cmd line app tests under #ifdef PDAL_COMPILER_MSVC.
-//
-// This problem shows up on mpg's Ubuntu 11.4 machine (gcc 4.5.2, boost 1.47.0)
-// as well as on Hobu's machine.
-
-// Boost's unit test system has a flag on the execution monitor that catches
-// all signals --  p_catch_system_errors, and throws unittest errors when
-// it sees them. We can use --catch_system_errors=no as part of the invocation,
-// or manually turn them off in the execution monitor. -- hobu 7/12/2012
-//  boost::unit_test::unit_test_monitor.p_catch_system_errors.set (false);
-// #include <boost/test/unit_test_monitor.hpp>
-
-int Utils::run_shell_command(const string& cmd, string& output)
+int Utils::run_shell_command(const std::string& cmd, std::string& output)
 {
     const int maxbuf = 4096;
     char buf[maxbuf];
 
     output = "";
 
-    const char* gdal_debug = ::pdal::Utils::getenv("CPL_DEBUG");
+    const char* gdal_debug = Utils::getenv("CPL_DEBUG");
     if (gdal_debug == 0)
     {
         pdal::Utils::putenv("CPL_DEBUG=OFF");
@@ -564,14 +399,14 @@ int Utils::run_shell_command(const string& cmd, string& output)
 }
 
 
-string Utils::replaceAll(string result, const string& replaceWhat,
-    const string& replaceWithWhat)
+std::string Utils::replaceAll(std::string result,
+    const std::string& replaceWhat, const std::string& replaceWithWhat)
 {
     size_t pos = 0;
     while (1)
     {
         pos = result.find(replaceWhat, pos);
-        if (pos == string::npos)
+        if (pos == std::string::npos)
             break;
         result.replace(pos, replaceWhat.size(), replaceWithWhat);
         pos += replaceWithWhat.size();
@@ -583,7 +418,7 @@ string Utils::replaceAll(string result, const string& replaceWhat,
 
 
 // Adapted from http://stackoverflow.com/a/11969098.
-std::string Utils::escapeJSON(const string &str)
+std::string Utils::escapeJSON(const std::string &str)
 {
     std::string escaped(str);
 
@@ -603,7 +438,7 @@ std::string Utils::escapeJSON(const string &str)
 
     size_t pos(0);
 
-    while((pos = escaped.find_first_of("\"\\/", pos)) != string::npos)
+    while((pos = escaped.find_first_of("\"\\/", pos)) != std::string::npos)
     {
         escaped.insert(pos, "\\");
         pos += 2;
@@ -616,28 +451,34 @@ std::string Utils::escapeJSON(const string &str)
 /// length.
 /// \param[in] inputString  String to split
 /// \param[in] lineLength  Maximum length of any of the output strings
+/// \param[in] firstLength  Maximum length of any of the output strings
 /// \return  List of string split from input.
 ///
-StringList Utils::wordWrap(string const& inputString, size_t lineLength)
+StringList Utils::wordWrap(std::string const& inputString, size_t lineLength,
+    size_t firstLength)
 {
     // stolen from http://stackoverflow.com/questions/5815227/fix-improve-word-wrap-function
 
+    if (firstLength == 0)
+        firstLength = lineLength;
+
+    size_t len = firstLength;
     StringList output;
 
-    istringstream iss(inputString);
-    string line;
+    std::istringstream iss(inputString);
+    std::string line;
     do
     {
-        string word;
+        std::string word;
         iss >> word;
 
-        if (line.length() + word.length() > lineLength)
+        if (line.length() + word.length() > len)
         {
             output.push_back(line);
+            len = lineLength;
             line.clear();
         }
         line += word + " ";
-
     } while (iss);
 
     if (!line.empty())
@@ -668,7 +509,8 @@ int Utils::screenWidth()
     return 80;
 #else
     struct winsize ws;
-    ioctl(0, TIOCGWINSZ, &ws);
+    if (ioctl(0, TIOCGWINSZ, &ws))
+        return 80;
 
     return ws.ws_col;
 #endif

@@ -38,8 +38,8 @@
 
 #include <pdal/pdal_export.hpp>
 #include <pdal/Options.hpp>
+#include <pdal/Polygon.hpp>
 #include <pdal/PDALUtils.hpp>
-#include <pdal/util/Utils.hpp>
 
 namespace pdal
 {
@@ -80,23 +80,32 @@ void Summary::extractMetadata(MetadataNode &m) const
 
 using namespace stats;
 
+bool StatsFilter::processOne(PointRef& point)
+{
+    for (auto p = m_stats.begin(); p != m_stats.end(); ++p)
+    {
+        Dimension::Id::Enum d = p->first;
+        Summary& c = p->second;
+        c.insert(point.getFieldAs<double>(d));
+    }
+    return true;
+}
+
+
 void StatsFilter::filter(PointView& view)
 {
+    PointRef point(view, 0);
     for (PointId idx = 0; idx < view.size(); ++idx)
     {
-        for (auto p = m_stats.begin(); p != m_stats.end(); ++p)
-        {
-            Dimension::Id::Enum d = p->first;
-            Summary& c = p->second;
-            c.insert(view.getFieldAs<double>(d, idx));
-        }
+        point.setPointId(idx);
+        processOne(point);
     }
 }
 
 
 void StatsFilter::done(PointTableRef table)
 {
-    extractMetadata();
+    extractMetadata(table);
 }
 
 
@@ -111,8 +120,8 @@ void StatsFilter::processOptions(const Options& options)
 void StatsFilter::prepared(PointTableRef table)
 {
     PointLayoutPtr layout(table.layout());
-
     std::unordered_map<std::string, Summary::EnumType> dims;
+    std::ostream& out = log()->get(LogLevel::Warning);
 
     // Add dimensions to the list.
     if (m_dimNames.empty())
@@ -125,12 +134,8 @@ void StatsFilter::prepared(PointTableRef table)
         for (auto& s : m_dimNames)
         {
             if (layout->findDim(s) == Dimension::Id::Unknown)
-            {
-                std::ostringstream out;
-                out << "Dimension '" << s << "' listed in --dimensions option "
-                   "does not exist.  Ignoring.";
-                Utils::printError(out.str());
-            }
+                out << "Dimension '" << s << "' listed in --dimensions "
+                    "option does not exist.  Ignoring." << std::endl;
             else
                 dims[s] = Summary::NoEnum;
         }
@@ -140,12 +145,8 @@ void StatsFilter::prepared(PointTableRef table)
     for (auto& s : m_enums)
     {
         if (dims.find(s) == dims.end())
-        {
-            std::ostringstream out;
             out << "Dimension '" << s << "' listed in --enumerate option "
-                "does not exist.  Ignoring.";
-            Utils::printError(out.str());
-        }
+                "does not exist.  Ignoring." << std::endl;
         else
             dims[s] = Summary::Enumerate;
     }
@@ -154,12 +155,8 @@ void StatsFilter::prepared(PointTableRef table)
     for (auto& s : m_counts)
     {
         if (dims.find(s) == dims.end())
-        {
-            std::ostringstream out;
             out << "Dimension '" << s << "' listed in --count option "
-                "does not exist.  Ignoring.";
-            Utils::printError(out.str());
-        }
+                "does not exist.  Ignoring." << std::endl;
         else
             dims[s] = Summary::Count;
     }
@@ -169,9 +166,9 @@ void StatsFilter::prepared(PointTableRef table)
         m_stats.insert(std::make_pair(layout->findDim(dv.first),
             Summary(dv.first, dv.second)));
 }
-    
 
-void StatsFilter::extractMetadata()
+
+void StatsFilter::extractMetadata(PointTableRef table)
 {
     uint32_t position(0);
 
@@ -182,6 +179,41 @@ void StatsFilter::extractMetadata()
         MetadataNode t = m_metadata.addList("statistic");
         t.add("position", position++);
         s.extractMetadata(t);
+    }
+
+    // If we have X, Y, & Z dims, output bboxes
+    auto xs = m_stats.find(Dimension::Id::X);
+    auto ys = m_stats.find(Dimension::Id::Y);
+    auto zs = m_stats.find(Dimension::Id::Z);
+    if (xs != m_stats.end() &&
+        ys != m_stats.end() &&
+        zs != m_stats.end())
+    {
+        BOX3D box(xs->second.minimum(), ys->second.minimum(), zs->second.minimum(),
+                  xs->second.maximum(), ys->second.maximum(), zs->second.maximum());
+        pdal::Polygon p(box);
+
+        MetadataNode mbox = Utils::toMetadata(box);
+        MetadataNode box_metadata = m_metadata.add("bbox");
+        MetadataNode metadata = box_metadata.add("native");
+        MetadataNode boundary = metadata.add("boundary", p.json());
+        MetadataNode bbox = metadata.add(mbox);
+        SpatialReference ref = table.anySpatialReference();
+        // if we don't get an SRS from the PointTableRef,
+        // we won't add another metadata node
+        if (!ref.empty())
+        {
+            p.setSpatialReference(ref);
+            SpatialReference epsg4326("EPSG:4326");
+            pdal::Polygon pdd = p.transform(epsg4326);
+            BOX3D ddbox = pdd.bounds();
+            MetadataNode epsg_4326_box = Utils::toMetadata(ddbox);
+            MetadataNode dddbox = box_metadata.add("EPSG:4326");
+            dddbox.add(epsg_4326_box);
+            MetadataNode ddboundary = dddbox.add("boundary", pdd.json());
+
+
+        }
     }
 }
 

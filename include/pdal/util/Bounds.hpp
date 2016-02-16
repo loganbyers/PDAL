@@ -37,17 +37,7 @@
 #include <cstdint>
 #include <sstream>
 
-#ifndef PDAL_DLL
-#if defined(_WIN32)
-#   define PDAL_DLL   __declspec(dllexport)
-#else
-#  if defined(USE_GCC_VISIBILITY_FLAG)
-#    define PDAL_DLL     __attribute__ ((visibility("default")))
-#  else
-#    define PDAL_DLL
-#  endif
-#endif
-#endif
+#include "pdal_util_export.hpp"
 
 namespace pdal
 {
@@ -179,6 +169,19 @@ public:
         oss << minx << " " << miny;
         oss << "))";
 
+        return oss.str();
+    }
+
+    std::string toGeoJSON(uint32_t precision = 8) const
+    {
+        if (empty())
+            return std::string();
+
+        std::stringstream oss;
+
+        oss.precision(precision);
+        oss.setf(std::ios_base::fixed, std::ios_base::floatfield);
+        oss << "{\"bbox\":[" << minx << ", " << miny << ", " << maxx <<  "," << maxy << "]}";
         return oss.str();
     }
 

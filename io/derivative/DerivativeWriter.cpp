@@ -38,6 +38,7 @@
 #include <pdal/util/Utils.hpp>
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -45,6 +46,7 @@
 #include <boost/filesystem.hpp>
 
 #include "gdal_priv.h" // For File I/O
+#include "gdal_version.h" // For version info
 #include "ogr_spatialref.h"  //For Geographic Information/Transformations
 
 namespace pdal
@@ -74,14 +76,9 @@ void DerivativeWriter::processOptions(const Options& ops)
 {
     m_GRID_DIST_X = ops.getValueOrDefault<double>("grid_dist_x", 15.0);
     m_GRID_DIST_Y = ops.getValueOrDefault<double>("grid_dist_y", 15.0);
-}
-
-
-void DerivativeWriter::initialize()
-{
 
     // maybe we eventually introduce an option to do more than slope
-    //std::vector<Option> types = options.getOptions("output_type");
+    //std::vector<Option> types = ops.getOptions("output_type");
 
     //if (!types.size())
     //    m_outputTypes = OUTPUT_TYPE_ALL;
@@ -103,35 +100,42 @@ void DerivativeWriter::initialize()
     //            m_outputTypes = OUTPUT_TYPE_ALL;
     //    }
     //}
-    std::string primitive_type =
-        getOptions().getValueOrDefault<std::string>("primitive_type", "slope_d8");
+    std::string primitiveType =
+        ops.getValueOrDefault<std::string>("primitive_type", "slope_d8");
+    std::string pt = Utils::tolower(primitiveType);
 
-    if (Utils::iequals(primitive_type, "slope_d8"))
+    if (pt == "slope_d8")
         m_primitive_type = SLOPE_D8;
-    else if (Utils::iequals(primitive_type, "slope_fd"))
+    else if (pt == "slope_fd")
         m_primitive_type = SLOPE_FD;
-    else if (Utils::iequals(primitive_type, "aspect_d8"))
+    else if (pt == "aspect_d8")
         m_primitive_type = ASPECT_D8;
-    else if (Utils::iequals(primitive_type, "aspect_fd"))
+    else if (pt == "aspect_fd")
         m_primitive_type = ASPECT_FD;
-    else if (Utils::iequals(primitive_type, "hillshade"))
+    else if (pt == "hillshade")
         m_primitive_type = HILLSHADE;
-    else if (Utils::iequals(primitive_type, "contour_curvature"))
+    else if (pt == "contour_curvature")
         m_primitive_type = CONTOUR_CURVATURE;
-    else if (Utils::iequals(primitive_type, "profile_curvature"))
+    else if (pt == "profile_curvature")
         m_primitive_type = PROFILE_CURVATURE;
-    else if (Utils::iequals(primitive_type, "tangential_curvature"))
+    else if (pt == "tangential_curvature")
         m_primitive_type = TANGENTIAL_CURVATURE;
-    else if (Utils::iequals(primitive_type, "total_curvature"))
+    else if (pt == "total_curvature")
         m_primitive_type = TOTAL_CURVATURE;
-    else if (Utils::iequals(primitive_type, "catchment_area"))
+    else if (pt == "catchment_area")
         m_primitive_type = CATCHMENT_AREA;
     else
     {
         std::ostringstream oss;
-        oss << "Unrecognized primitive type " << primitive_type;
-        throw pdal_error(oss.str().c_str());
+        oss << "Unrecognized primitive type " << primitiveType;
+        throw pdal_error(oss.str());
     }
+
+}
+
+
+void DerivativeWriter::initialize()
+{
 
     setBounds(BOX2D());
 }
@@ -968,11 +972,11 @@ GDALDataset* DerivativeWriter::createFloat32GTIFF(std::string filename,
         {
             char **papszOptions = NULL;
 
-            boost::filesystem::path p(filename);
+            pdalboost::filesystem::path p(filename);
             p.replace_extension(".tif");
             GDALDataset *dataset;
             dataset = tpDriver->Create(p.string().c_str(), cols, rows, 1,
-                                       GDT_Float32, papszOptions);
+                GDT_Float32, papszOptions);
 
             BOX2D& extent = getBounds();
 
@@ -1060,9 +1064,20 @@ void DerivativeWriter::writeSlope(Eigen::MatrixXd* tDemData,
             tBand->SetNoDataValue((double)c_background);
 
             if (m_GRID_SIZE_X > 0 && m_GRID_SIZE_Y > 0)
+// #define STR_HELPER(x) #x
+// #define STR(x) STR_HELPER(x)
+//
+// #pragma message "content of GDAL_VERSION_MAJOR:" STR(GDAL_VERSION_MAJOR)
+#if GDAL_VERSION_MAJOR <= 1
                 tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 GDT_Float32, 0, 0);
+#else
+
+                int ret = tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          GDT_Float32, 0, 0, 0);
+#endif
         }
 
         GDALClose((GDALDatasetH) mpDstDS);
@@ -1134,9 +1149,15 @@ void DerivativeWriter::writeAspect(Eigen::MatrixXd* tDemData,
             tBand->SetNoDataValue((double)c_background);
 
             if (m_GRID_SIZE_X > 0 && m_GRID_SIZE_Y > 0)
+#if GDAL_VERSION_MAJOR <= 1
                 tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 GDT_Float32, 0, 0);
+#else
+                int ret = tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          GDT_Float32, 0, 0, 0);
+#endif
         }
 
         GDALClose((GDALDatasetH) mpDstDS);
@@ -1214,9 +1235,15 @@ void DerivativeWriter::writeCatchmentArea(Eigen::MatrixXd* tDemData,
             tBand->SetNoDataValue((double)c_background);
 
             if (m_GRID_SIZE_X > 0 && m_GRID_SIZE_Y > 0)
+#if GDAL_VERSION_MAJOR <= 1
                 tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 GDT_Float32, 0, 0);
+#else
+                int ret = tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          GDT_Float32, 0, 0, 0);
+#endif
         }
 
         GDALClose((GDALDatasetH) mpDstDS);
@@ -1358,9 +1385,16 @@ void DerivativeWriter::writeHillshade(Eigen::MatrixXd* tDemData,
             tBand->SetNoDataValue((double)c_background);
 
             if (m_GRID_SIZE_X > 0 && m_GRID_SIZE_Y > 0)
+#if GDAL_VERSION_MAJOR <= 1
                 tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 GDT_Float32, 0, 0);
+#else
+
+                int ret = tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          GDT_Float32, 0, 0, 0);
+#endif
         }
 
         GDALClose((GDALDatasetH) mpDstDS);
@@ -1451,9 +1485,15 @@ void DerivativeWriter::writeCurvature(Eigen::MatrixXd* tDemData,
             tBand->SetNoDataValue((double)c_background);
 
             if (m_GRID_SIZE_X > 0 && m_GRID_SIZE_Y > 0)
+#if GDAL_VERSION_MAJOR <= 1
                 tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
                                 GDT_Float32, 0, 0);
+#else
+                int ret = tBand->RasterIO(GF_Write, 0, 0, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          poRasterData, m_GRID_SIZE_X, m_GRID_SIZE_Y,
+                                          GDT_Float32, 0, 0, 0);
+#endif
         }
 
         GDALClose((GDALDatasetH) mpDstDS);
@@ -1599,7 +1639,7 @@ void DerivativeWriter::write(const PointViewPtr data)
     bool* prevSetCols = new bool[m_GRID_SIZE_X];
     bool* curSetCols = new bool[m_GRID_SIZE_X];
 
-    for (uint32_t y = 1; y < m_GRID_SIZE_Y; ++y)
+    for (uint32_t y = 1; y < m_GRID_SIZE_Y-1; ++y)
     {
         CleanRasterScanLine(tDemData, tDemData.row(1), m_GRID_SIZE_X, y,
                             prevSetCols, curSetCols);

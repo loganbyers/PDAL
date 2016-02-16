@@ -34,8 +34,6 @@
 
 #pragma once
 
-#include <pdal/pdal_internal.hpp>
-
 #include <algorithm>
 #include <string>
 #include <cassert>
@@ -48,11 +46,11 @@
 #include <limits>
 #include <cstring>
 #include <sstream>
+#include <typeinfo>
 #include <vector>
 #include <map>
 
-#include <boost/numeric/conversion/cast.hpp>
-#include <boost/lexical_cast.hpp>
+#include "pdal_util_export.hpp"
 
 namespace pdal
 {
@@ -169,10 +167,6 @@ namespace Utils
         return i;
     }
 
-    PDAL_DLL void *registerPlugin(void *stageFactoryPtr,
-        std::string const& filename, std::string const& registerMethodName,
-        std::string const& versionMethodName);
-
     PDAL_DLL char *getenv(const char *env);
     PDAL_DLL std::string getenv(std::string const& name);
     PDAL_DLL int putenv(const char *env);
@@ -190,8 +184,6 @@ namespace Utils
     // then return false
     PDAL_DLL bool eatcharacter(std::istream& s, char x);
     PDAL_DLL uint32_t getStreamPrecision(double scale);
-    PDAL_DLL void *getDLLSymbol(std::string const& library,
-        std::string const& name);
     PDAL_DLL std::string base64_encode(const unsigned char *buf, size_t size);
     inline std::string base64_encode(std::vector<uint8_t> const& bytes)
         { return base64_encode(bytes.data(), bytes.size()); }
@@ -204,8 +196,8 @@ namespace Utils
     PDAL_DLL int run_shell_command(const std::string& cmd, std::string& output);
     PDAL_DLL std::string replaceAll(std::string result,
         const std::string& replaceWhat, const std::string& replaceWithWhat);
-    PDAL_DLL StringList wordWrap(std::string const& inputString,
-        size_t lineLength);
+    PDAL_DLL std::vector<std::string> wordWrap(std::string const& inputString,
+        size_t lineLength, size_t firstLength = 0);
     PDAL_DLL std::string escapeJSON(const std::string &s);
     PDAL_DLL std::string demangle(const std::string& s);
     PDAL_DLL int screenWidth();
@@ -449,14 +441,16 @@ namespace Utils
     template<typename T>
     bool fromString(const std::string& from, T& to)
     {
-        try
-        {
-            to = boost::lexical_cast<T>(from);
-        }
-        catch (boost::bad_lexical_cast&)
-        {
-            return false;
-        }
+        std::istringstream iss(from);
+
+        iss >> to;
+        return !iss.fail();
+    }
+
+    template<>
+    inline bool fromString(const std::string& from, std::string& to)
+    {
+        to = from;
         return true;
     }
 

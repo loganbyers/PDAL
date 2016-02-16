@@ -35,7 +35,7 @@
 #include "HexBin.hpp"
 
 #include <hexer/HexIter.hpp>
-#include <pdal/Geometry.hpp>
+#include <pdal/Polygon.hpp>
 #include <pdal/StageFactory.hpp>
 
 using namespace hexer;
@@ -130,15 +130,13 @@ void HexBin::done(PointTableRef table)
         MetadataNode hexes = m_metadata.add("hexagons");
         for (HexIter hi = m_grid->hexBegin(); hi != m_grid->hexEnd(); ++hi)
         {
-            using namespace boost;
-
             HexInfo h = *hi;
 
             MetadataNode hex = hexes.addList("hexagon");
             hex.add("density", h.density());
 
-            hex.add("gridpos", lexical_cast<std::string>(h.xgrid()) + " " +
-                lexical_cast<std::string>(h.ygrid()));
+            hex.add("gridpos", Utils::toString(h.xgrid()) + " " +
+                Utils::toString((h.ygrid())));
             std::ostringstream oss;
             // Using stream limits precision (default 6)
             oss << "POINT (" << h.x() << " " << h.y() << ")";
@@ -169,11 +167,13 @@ void HexBin::done(PointTableRef table)
     double cull =
         m_options.getValueOrDefault<double>("hole_cull_area_tolerance",
             6 * tolerance * tolerance);
-    std::string smooth = Geometry::smoothPolygon(polygon.str(), tolerance,
-        precision, cull);
 
-    m_metadata.add("boundary", smooth, "Approximated MULTIPOLYGON of domain");
-    double area = Geometry::computeArea(polygon.str());
+    pdal::Polygon p(polygon.str());
+    pdal::Polygon smooth = p.simplify(tolerance, cull);
+    std::string smooth_text = smooth.wkt(precision);
+
+    m_metadata.add("boundary", smooth_text, "Approximated MULTIPOLYGON of domain");
+    double area = p.area();
 
 //    double density = (double) m_grid->densePointCount() / area ;
     double density = (double) m_count/ area ;

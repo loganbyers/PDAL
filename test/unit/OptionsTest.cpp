@@ -43,11 +43,15 @@
 
 #include <boost/property_tree/xml_parser.hpp>
 
-static std::string xml_header = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
-static std::string xml_int_ref = "<Name>my_int</Name><Value>17</Value><Description>This is my integral option.</Description>";
-static std::string xml_str_ref = "<Name>my_string</Name><Value>Yow.</Value><Description>This is my stringy option.</Description>";
+namespace
+{
+const std::string xml_header = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+const std::string xml_int_ref = "<Name>my_int</Name><Value>17</Value><Description>This is my integral option.</Description>";
+const std::string xml_str_ref = "<Name>my_string</Name><Value>Yow.</Value><Description>This is my stringy option.</Description>";
+}
 
-using namespace pdal;
+namespace pdal
+{
 
 TEST(OptionsTest, test_static_options)
 {
@@ -60,7 +64,7 @@ TEST(OptionsTest, test_static_options)
     crop.setOptions(ops);
     crop.setInput(reader);
     auto opts = crop.getDefaultOptions();
-    EXPECT_EQ(opts.getOptions().size(), 3u);
+    EXPECT_EQ(opts.getOptions().size(), 4u);
     EXPECT_TRUE(opts.hasOption("bounds"));
     EXPECT_TRUE(opts.hasOption("inside"));
     EXPECT_TRUE(opts.hasOption("polygon"));
@@ -87,23 +91,24 @@ TEST(OptionsTest, test_option_writing)
     EXPECT_TRUE(option_s.getValue<std::string>() == "Yow.");
     EXPECT_TRUE(option_s.getValue<std::string>() == "Yow.");
 
-    const boost::property_tree::ptree tree_i = Utils::toPTree(option_i);
-    boost::property_tree::xml_parser::write_xml(ostr_i, tree_i);
+    const pdalboost::property_tree::ptree tree_i = Utils::toPTree(option_i);
+    pdalboost::property_tree::xml_parser::write_xml(ostr_i, tree_i);
     const std::string str_i = ostr_i.str();
     EXPECT_TRUE(str_i == ref_i);
 
-    const boost::property_tree::ptree tree_s = Utils::toPTree(option_s);
-    boost::property_tree::xml_parser::write_xml(ostr_s, tree_s);
+    const pdalboost::property_tree::ptree tree_s = Utils::toPTree(option_s);
+    pdalboost::property_tree::xml_parser::write_xml(ostr_s, tree_s);
     const std::string str_s = ostr_s.str();
     EXPECT_TRUE(str_s == ref_s);
 }
 
+/**
 TEST(OptionsTest, test_option_reading)
 {
     // from an xml stream
     std::istringstream istr(xml_int_ref);
-    boost::property_tree::ptree tree1;
-    boost::property_tree::read_xml(istr,tree1);
+    pdalboost::property_tree::ptree tree1;
+    pdalboost::property_tree::read_xml(istr,tree1);
     Option opt_from_istr(tree1);
 
     EXPECT_TRUE(opt_from_istr.getName() == "my_int");
@@ -112,7 +117,7 @@ TEST(OptionsTest, test_option_reading)
     EXPECT_TRUE(opt_from_istr.getValue<int>() == 17);
 
     // from a ptree (assumed to be built correctly)
-    const boost::property_tree::ptree tree2 = Utils::toPTree(opt_from_istr);
+    const pdalboost::property_tree::ptree tree2 = Utils::toPTree(opt_from_istr);
     Option opt_from_ptree(tree2);
 
     EXPECT_TRUE(opt_from_ptree.getName() == "my_int");
@@ -120,6 +125,7 @@ TEST(OptionsTest, test_option_reading)
     EXPECT_TRUE(opt_from_ptree.getValue<std::string>() == "17");
     EXPECT_TRUE(opt_from_ptree.getValue<int>() == 17);
 }
+**/
 
 TEST(OptionsTest, test_options_copy_ctor)
 {
@@ -148,8 +154,8 @@ TEST(OptionsTest, test_options_writing)
     std::ostringstream ostr;
     const std::string ref = xml_header + "<Option>" + xml_int_ref + "</Option><Option>" + xml_str_ref + "</Option>";
 
-    const boost::property_tree::ptree& tree = Utils::toPTree(opts);
-    boost::property_tree::xml_parser::write_xml(ostr, tree);
+    const pdalboost::property_tree::ptree& tree = Utils::toPTree(opts);
+    pdalboost::property_tree::xml_parser::write_xml(ostr, tree);
     const std::string str = ostr.str();
     EXPECT_TRUE(str == ref);
 
@@ -163,20 +169,6 @@ TEST(OptionsTest, test_options_writing)
     EXPECT_TRUE(desc_s == "This is my stringy option.");
 }
 
-TEST(OptionsTest, test_options_reading)
-{
-    const std::string ref = xml_header + "<Option>" + xml_int_ref + "</Option><Option>" + xml_str_ref + "</Option>";
-    std::istringstream istr(ref);
-
-    boost::property_tree::ptree tree;
-    boost::property_tree::read_xml(istr,tree);
-    Options opts_from_istr(tree);
-
-    const Option& opt = opts_from_istr.getOption("my_int");
-
-    EXPECT_TRUE(opt.getValue<std::string>() == "17");
-    EXPECT_TRUE(opt.getValue<int>() == 17);
-}
 
 TEST(OptionsTest, test_valid_options)
 {
@@ -279,28 +271,6 @@ TEST(OptionsTest, implicitdefault)
     EXPECT_EQ(slist.size(), (size_t)4);
 }
 
-TEST(OptionsTest, metadata)
-{
-    Options ops;
-    ops.add("testa", "This is a test");
-    ops.add("testb", 56);
-    ops.add("testc", 27.5, "Testing testc");
-
-    Option op35("testd", 3.5);
-
-    ops.add("teste", "Testing option test e");
-
-    MetadataNode node = ops.toMetadata();
-
-    std::string goodfile(Support::datapath("misc/opts2json_meta.txt"));
-    std::string testfile(Support::temppath("opts2json.txt"));
-    {
-        std::ofstream out(testfile);
-        Utils::toJSON(node, out);
-    }
-    EXPECT_TRUE(Support::compare_files(goodfile, testfile));
-}
-
 TEST(OptionsTest, conditional)
 {
     CropFilter s;
@@ -339,3 +309,5 @@ TEST(OptionsTest, valid)
     EXPECT_FALSE(Option::nameValid("1foo_123_bar_baz", false));
     EXPECT_FALSE(Option::nameValid("1foo_123_bar_baz", false));
 }
+
+} // namespace pdal

@@ -35,7 +35,6 @@
 #pragma once
 
 #include <pdal/Kernel.hpp>
-#include <pdal/plugin.hpp>
 
 extern "C" int32_t SplitKernel_ExitFunc();
 extern "C" PF_ExitFunc SplitKernel_InitPlugin();
@@ -52,8 +51,8 @@ public:
     int execute();
 
 private:
-    void addSwitches();
-    void validateSwitches();
+    void addSwitches(ProgramArgs& args);
+    void validateSwitches(ProgramArgs& args);
 
     std::string m_inputFile;
     std::string m_outputFile;

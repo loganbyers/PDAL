@@ -58,12 +58,11 @@ public:
 
 
 private:
-    void addSwitches(); // overrride
-    void validateSwitches(); // overrride
+    virtual void addSwitches(ProgramArgs& args);
 
     void checkPoints(const PointView& source_data,
         const PointView& candidate_data,
-        boost::property_tree::ptree& errors);
+        pdalboost::property_tree::ptree& errors);
     std::string m_sourceFile;
     std::string m_candidateFile;
 };

@@ -34,7 +34,9 @@
 
 #include <pdal/pdal_test_main.hpp>
 
-#include <pdal/BufferReader.hpp>
+#include <array>
+
+#include <buffer/BufferReader.hpp>
 #include <pdal/PointView.hpp>
 #include <pdal/StageFactory.hpp>
 #include "Support.hpp"

@@ -34,6 +34,8 @@
 
 #pragma once
 
+#include <list>
+
 #include <pdal/pdal_internal.hpp>
 #include <pdal/plugin.hpp>
 
@@ -41,7 +43,9 @@
 #include <pdal/Log.hpp>
 #include <pdal/Metadata.hpp>
 #include <pdal/Options.hpp>
+#include <pdal/PipelineWriter.hpp>
 #include <pdal/PointTable.hpp>
+#include <pdal/PointRef.hpp>
 #include <pdal/PointView.hpp>
 #include <pdal/QuickInfo.hpp>
 #include <pdal/SpatialReference.hpp>
@@ -52,12 +56,12 @@
 namespace pdal
 {
 
-class Iterator;
 class StageRunner;
 class StageWrapper;
 
 class PDAL_DLL Stage
 {
+    FRIEND_TEST(OptionsTest, conditional);
     friend class StageWrapper;
     friend class StageRunner;
 public:
@@ -79,11 +83,10 @@ public:
     }
     void prepare(PointTableRef table);
     PointViewSet execute(PointTableRef table);
+    void execute(StreamPointTable& table);
 
     void setSpatialReference(SpatialReference const&);
     const SpatialReference& getSpatialReference() const;
-    const Options& getOptions() const
-        { return m_options; }
     void setOptions(Options options)
         { m_options = options; }
     void addConditionalOptions(const Options& opts);
@@ -97,32 +100,28 @@ public:
         for (const auto& o : opts.getOptions())
             m_options.remove(o);
     }
-    virtual boost::property_tree::ptree serializePipeline() const = 0;
     virtual LogPtr log() const
         { return m_log; }
     bool isDebug() const
-        {
-            return m_options.getValueOrDefault<bool>("debug", false);
-        }
+        { return m_options.getValueOrDefault<bool>("debug", false); }
     bool isVerbose() const
         { return (getVerboseLevel() != 0 ); }
     uint32_t getVerboseLevel() const
-        {
-            return m_options.getValueOrDefault<uint32_t>("verbose", 0);
-        }
+        { return m_options.getValueOrDefault<uint32_t>("verbose", 0); }
     virtual std::string getName() const = 0;
+    virtual std::string tagName() const
+        { return getName(); }
     const std::vector<Stage*>& getInputs() const
         { return m_inputs; }
-    std::vector<Stage *> findStage(std::string name);
     virtual Options getDefaultOptions()
         { return Options(); }
     static Dimension::IdList getDefaultDimensions()
         { return Dimension::IdList(); }
     static std::string s_getPluginVersion()
         { return std::string(); }
-
     inline MetadataNode getMetadata() const
         { return m_metadata; }
+    void serialize(MetadataNode root, PipelineWriter::TagMap& tags) const;
 
     /// Sets the UserCallback to manage progress/cancel operations
     void setUserCallback(UserCallback* userCallback)
@@ -168,11 +167,20 @@ private:
         {}
     virtual void done(PointTableRef /*table*/)
         {}
+    virtual bool processOne(PointRef& /*point*/)
+    {
+        std::ostringstream oss;
+        oss << "Point streaming not supported for stage " << getName() << ".";
+        throw pdal_error(oss.str());
+    }
     virtual PointViewSet run(PointViewPtr /*view*/)
     {
         std::cerr << "Can't run stage = " << getName() << "!\n";
         return PointViewSet();
     }
+    void execute(StreamPointTable& table, std::list<Stage *>& stages);
+    const Options& getOptions() const
+        { return m_options; }
 };
 
 PDAL_DLL std::ostream& operator<<(std::ostream& ostr, const Stage&);

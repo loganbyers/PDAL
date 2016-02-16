@@ -47,6 +47,8 @@ TEST(MergeTest, test1)
     PipelineManager mgr;
     PipelineReaderXML specReader(mgr);
     specReader.readPipeline(Support::configuredpath("filters/merge.xml"));
+    // TODO(chambbj): bury PipelineReader inside of PipelineManager
+    // mgr.readPipeline(Support::configuredpath("filters/merge.xml"));
     mgr.execute();
 
     PointViewSet viewSet = mgr.views();
@@ -63,6 +65,8 @@ TEST(MergeTest, test2)
     PipelineManager mgr;
     PipelineReaderXML specReader(mgr);
     specReader.readPipeline(Support::configuredpath("filters/merge2.xml"));
+    // TODO(chambbj): bury PipelineReader inside of PipelineManager
+    // mgr.readPipeline(Support::configuredpath("filters/merge2.xml"));
     mgr.execute();
 
     PointViewSet viewSet = mgr.views();
@@ -79,6 +83,8 @@ TEST(MergeTest, test3)
     PipelineManager mgr;
     PipelineReaderXML specReader(mgr);
     specReader.readPipeline(Support::configuredpath("filters/merge3.xml"));
+    // TODO(chambbj): bury PipelineReader inside of PipelineManager
+    // mgr.readPipeline(Support::configuredpath("filters/merge3.xml"));
 
     std::ostringstream oss;
     std::ostream& o = std::clog;

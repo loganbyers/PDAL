@@ -35,42 +35,21 @@
 #pragma once
 
 #include <pdal/pdal_internal.hpp>
-#include <pdal/Options.hpp>
-#include <pdal/Metadata.hpp>
 
+#include <map>
 #include <string>
-
-#include <boost/property_tree/ptree.hpp>
 
 namespace pdal
 {
 
-class PipelineManager;
+class Stage;
 
-class PDAL_DLL PipelineWriter
+namespace PipelineWriter
 {
-public:
-    PipelineWriter(const PipelineManager& manager) : m_manager(manager)
-        {}
+    typedef std::map<const Stage *, std::string> TagMap;
 
-    void writePipeline(const std::string& filename) const;
-    void writePipeline(std::ostream& strm) const;
-
-    static void write_option_ptree(boost::property_tree::ptree& tree,
-        const Options& opts);
-
-    static void writeMetadata(boost::property_tree::ptree& tree,
-        const MetadataNode& input);
-    static void writeMetadata(boost::property_tree::ptree& tree,
-        const MetadataNodeList& input);
-
-    static boost::property_tree::ptree getMetadataEntry(
-        const MetadataNode& input);
-private:
-    const PipelineManager& m_manager;
-
-    PipelineWriter& operator=(const PipelineWriter&); // not implemented
-    PipelineWriter(const PipelineWriter&); // not implemented
+    PDAL_DLL void writePipeline(Stage *s, const std::string& filename);
+    PDAL_DLL void writePipeline(Stage *s, std::ostream& strm);
 };
 
 } // namespace pdal

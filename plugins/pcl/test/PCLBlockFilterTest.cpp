@@ -56,6 +56,9 @@ TEST(PCLBlockFilterTest, PCLBlockFilterTest_example_passthrough_xml)
     PipelineReaderXML pipelineReader(pipeline);
     pipelineReader.readPipeline(
         Support::configuredpath("filters/pcl/passthrough.xml"));
+    // TODO(chambbj): it has been suggested that we bury the PipelineReader
+    // inside of PipelineManager
+    // pipeline.readPipeline(Support::datapath("filters/pcl/passthrough.xml"));
     pipeline.execute();
 
     PointViewSet viewSet = pipeline.views();

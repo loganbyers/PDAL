@@ -34,6 +34,7 @@
 
 #include <pdal/pdal_test_main.hpp>
 
+#include <array>
 #include <random>
 
 #include <boost/property_tree/xml_parser.hpp>
@@ -211,20 +212,6 @@ TEST(PointViewTest, assignment)
 
     PointView d2 = *view;
     verifyTestView(d2);
-}
-
-
-TEST(PointViewTest, metaview)
-{
-    PointTable table;
-    PointViewPtr view = makeTestView(table, 2);
-
-    std::stringstream ss1(std::stringstream::in | std::stringstream::out);
-    MetadataNode tree = Utils::toMetadata(view);
-
-    std::ifstream str1(Support::datapath("pointbuffer/metaview.txt"));
-    std::istringstream str2(Utils::toJSON(tree));
-    //EXPECT_TRUE(Support::compare_text_files(str1, str2));
 }
 
 

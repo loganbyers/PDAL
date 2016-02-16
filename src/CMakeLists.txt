@@ -37,13 +37,12 @@ endif()
 #
 set(PDAL_BASE_HPP
   "${PDAL_HEADERS_DIR}/pdal_types.hpp"
-  "${PDAL_HEADERS_DIR}/BufferReader.hpp"
   "${PDAL_HEADERS_DIR}/Compression.hpp"
   "${PDAL_HEADERS_DIR}/Dimension.hpp"
   "${PDAL_HEADERS_DIR}/Filter.hpp"
   "${PDAL_HEADERS_DIR}/FlexWriter.hpp"
   "${PDAL_HEADERS_DIR}/GDALUtils.hpp"
-  "${PDAL_HEADERS_DIR}/Geometry.hpp"
+  "${PDAL_HEADERS_DIR}/GEOSUtils.hpp"
   "${PDAL_HEADERS_DIR}/GlobalEnvironment.hpp"
   "${PDAL_HEADERS_DIR}/gitsha.h"
   "${PDAL_HEADERS_DIR}/KDIndex.hpp"
@@ -57,10 +56,13 @@ set(PDAL_BASE_HPP
   "${PDAL_HEADERS_DIR}/PipelineReaderJSON.hpp"
   "${PDAL_HEADERS_DIR}/PipelineReaderXML.hpp"
   "${PDAL_HEADERS_DIR}/PipelineWriter.hpp"
+  "${PDAL_HEADERS_DIR}/PointContainer.hpp"
   "${PDAL_HEADERS_DIR}/PointLayout.hpp"
+  "${PDAL_HEADERS_DIR}/PointRef.hpp"
   "${PDAL_HEADERS_DIR}/PointTable.hpp"
   "${PDAL_HEADERS_DIR}/PointView.hpp"
   "${PDAL_HEADERS_DIR}/PointViewIter.hpp"
+  "${PDAL_HEADERS_DIR}/Polygon.hpp"
   "${PDAL_HEADERS_DIR}/QuadIndex.hpp"
   "${PDAL_HEADERS_DIR}/Reader.hpp"
   "${PDAL_HEADERS_DIR}/SpatialReference.hpp"
@@ -69,6 +71,7 @@ set(PDAL_BASE_HPP
   "${PDAL_HEADERS_DIR}/StageWrapper.hpp"
   "${PDAL_HEADERS_DIR}/UserCallback.hpp"
   "${PDAL_HEADERS_DIR}/Writer.hpp"
+  "${PDAL_SRC_DIR}/PipelineReader.hpp"
   "${PDAL_SRC_DIR}/StageRunner.hpp"
     ${PDAL_XML_HEADER}
     ${DB_DRIVER_HEADERS}
@@ -76,21 +79,21 @@ set(PDAL_BASE_HPP
 
 set(PDAL_BASE_CPP
   DynamicLibrary.cpp
-  Filter.cpp
   gitsha.cpp
   GDALUtils.cpp
+  GEOSUtils.cpp
   GlobalEnvironment.cpp
   Kernel.cpp
   KernelFactory.cpp
   KernelSupport.cpp
   Log.cpp
+  Metadata.cpp
   Options.cpp
   PDALUtils.cpp
-
   PointLayout.cpp
   PointTable.cpp
   PointView.cpp
-
+  Polygon.cpp
   PipelineManager.cpp
   PipelineReaderJSON.cpp
   PipelineReaderXML.cpp
@@ -187,6 +190,7 @@ target_link_libraries(${PDAL_BASE_LIB_NAME}
     ${GEOS_LIBRARY}
     ${ZLIB_LIBRARIES}
     ${UTIL_LIB}
+    ${PDAL_BOOST_LIB_NAME}
 )
 
 if (WITH_GEOTIFF)
@@ -215,4 +219,5 @@ endif()
 
 install(DIRECTORY "${PDAL_HEADERS_DIR}/"
   DESTINATION "${PDAL_INCLUDE_INSTALL_DIR}"
-  FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+  PATTERN "/CMakeFiles/*" EXCLUDE
+  )

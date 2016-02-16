@@ -40,9 +40,8 @@
 #include <cstring>
 #include <stack>
 
-#include <pdal/pdal_internal.hpp>
-
 #include "portable_endian.hpp"
+#include "pdal_util_export.hpp"
 
 namespace pdal
 {
@@ -74,6 +73,8 @@ public:
         m_fstream = NULL;
         m_stream = NULL;
     }
+    bool isOpen() const
+        { return (bool)m_stream; }
     void flush()
         { m_stream->flush(); }
     operator bool ()
@@ -209,7 +210,12 @@ class OStreamMarker
 {
 public:
     OStreamMarker(OStream& stream) : m_stream(stream)
-        { m_pos = m_stream.position(); }
+    {
+        if (m_stream.isOpen())
+            m_pos = m_stream.position();
+        else
+            m_pos = 0;
+    }
 
     void mark()
         { m_pos = m_stream.position(); }
