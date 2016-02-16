@@ -802,9 +802,9 @@ public:
             info.push_back(std::make_pair(nameDescrip, a->description()));
             namelen = std::max(namelen, nameDescrip.size());
         }
-        int secondIndent = indent + 4;
+        size_t secondIndent = indent + 4;
         int postNameSpacing = 2;
-        int leadlen = namelen + indent + postNameSpacing;
+        size_t leadlen = namelen + indent + postNameSpacing;
         int firstlen = (int)totalWidth - leadlen - 1;
         int secondLen = totalWidth - secondIndent - 1;
         bool skipfirst = (firstlen < 10);
