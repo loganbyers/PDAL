@@ -314,7 +314,7 @@ public:
             if (m_positional == PosType::Required)
             {
                 std::ostringstream oss;
-            
+
                 oss << "Missing value for positional argument '" <<
                     m_longname << "'.";
                 throw arg_error(oss.str());
@@ -509,7 +509,7 @@ public:
       Set the argument's value from the positional list.
 
       List-based arguments consume ALL positional arguments until
-      one is found that can't be converted to the type of the bound variable. 
+      one is found that can't be converted to the type of the bound variable.
       \note  Not intended to be called from user code.
 
       \param posList  The list of positional strings specified on the command
@@ -703,7 +703,7 @@ public:
             {
                 i += parseArg(arg, value);
             }
-            catch (arg_error& e)
+            catch (arg_error& )
             {
                 i++;
             }
