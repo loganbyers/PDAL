@@ -64,7 +64,7 @@
 
 #ifdef PDAL_COMPILER_MSVC
 #  pragma warning(push)
-#  pragma warning(disable: 4267)  // ignore conversion warnings
+#  pragma warning(disable: 4267 4244)  // ignore conversion warnings
 #endif
 
 
