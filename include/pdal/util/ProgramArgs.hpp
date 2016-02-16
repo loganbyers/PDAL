@@ -805,8 +805,9 @@ public:
         size_t secondIndent = indent + 4;
         int postNameSpacing = 2;
         size_t leadlen = namelen + indent + postNameSpacing;
-        int firstlen = (int)totalWidth - leadlen - 1;
-        int secondLen = totalWidth - secondIndent - 1;
+        size_t firstlen = totalWidth - leadlen - 1;
+        size_t secondLen = totalWidth - secondIndent - 1;
+
         bool skipfirst = (firstlen < 10);
         if (skipfirst)
             firstlen = secondLen;
