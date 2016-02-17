@@ -46,6 +46,7 @@
 
 #ifndef WIN32
 #include <sys/fcntl.h>
+#include <unistd.h>
 #endif
 
 namespace pdal
