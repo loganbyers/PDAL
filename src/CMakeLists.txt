@@ -71,7 +71,7 @@ set(PDAL_BASE_HPP
   "${PDAL_HEADERS_DIR}/StageWrapper.hpp"
   "${PDAL_HEADERS_DIR}/UserCallback.hpp"
   "${PDAL_HEADERS_DIR}/Writer.hpp"
-  "${PDAL_SRC_DIR}/PipelineReader.hpp"
+  #"${PDAL_SRC_DIR}/PipelineReader.hpp"
   "${PDAL_SRC_DIR}/StageRunner.hpp"
     ${PDAL_XML_HEADER}
     ${DB_DRIVER_HEADERS}

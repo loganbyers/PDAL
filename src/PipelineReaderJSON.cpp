@@ -38,9 +38,7 @@
 #include <pdal/PipelineManager.hpp>
 #include <pdal/Options.hpp>
 #include <pdal/util/FileUtils.hpp>
-
-#include <boost/optional.hpp>
-#include <boost/algorithm/string/trim.hpp>
+#include <pdal/util/Utils.hpp>
 
 #include <json/json.h>
 #include <json/json-forwards.h>
@@ -164,7 +162,7 @@ Option PipelineReaderJSON::parseElement_Option(const std::string& name, const Js
     // here we make an assumption that we will never get here with a number of members != 1
     std::string value = tree[name].asString();
 
-    boost::algorithm::trim(value);
+    Utils::trim(value);
     Option option(name, value);
 
     // filenames in the JSON are fixed up as follows:
@@ -195,13 +193,52 @@ Option PipelineReaderJSON::parseElement_Option(const std::string& name, const Js
     }
     else if (option.getName() == "plugin")
     {
-        PluginManager& pm = PluginManager::getInstance();
-        std::string path = option.getValue<std::string>();
-        pm.loadPlugin(path);
+        PluginManager::loadPlugin(option.getValue<std::string>());
     }
     return option;
 }
 
+Stage *PipelineReaderJSON::parseReaderByFilename(const std::string& filename)
+{
+    Options options(m_baseOptions);
+
+    StageParserContext context;
+    std::string type;
+
+    try
+    {
+        type = StageFactory::inferReaderDriver(filename);
+        if (!type.empty())
+        {
+            context.addType();
+        }
+
+        std::cerr << type << ", " << filename << std::endl;
+
+        std::string path(filename);
+        if (!FileUtils::isAbsolutePath(path))
+        {
+            std::string abspath = FileUtils::toAbsolutePath(filename);
+            std::string absdir = FileUtils::getDirectory(abspath);
+            path = FileUtils::toAbsolutePath(path, absdir);
+
+            assert(FileUtils::isAbsolutePath(path));
+        }
+        std::cerr << path << std::endl;
+        Option opt("filename", path);
+        options += opt;
+    }
+    catch (Option::not_found)
+    {}
+
+    context.setCardinality(StageParserContext::None);
+    context.validate();
+
+    Stage& reader(m_manager.addReader(type));
+    reader.setOptions(options);
+
+    return &reader;
+}
 
 Stage *PipelineReaderJSON::parseElement_Reader(const Json::Value& tree)
 {
@@ -275,6 +312,47 @@ Stage *PipelineReaderJSON::parseElement_Filter(const Json::Value& tree)
     return &filter;
 }
 
+Stage *PipelineReaderJSON::parseWriterByFilename(const std::string& filename)
+{
+    Options options(m_baseOptions);
+
+    StageFactory f;
+    StageParserContext context;
+    std::string type;
+
+    try
+    {
+        type = f.inferWriterDriver(filename);
+        if (type.empty())
+            throw pdal_error("Cannot determine output file type of " +
+                filename);
+        std::cerr << type << ", " << filename << std::endl;
+
+        std::string path(filename);
+        if (!FileUtils::isAbsolutePath(path))
+        {
+            std::string abspath = FileUtils::toAbsolutePath(filename);
+            std::string absdir = FileUtils::getDirectory(abspath);
+            path = FileUtils::toAbsolutePath(path, absdir);
+
+            assert(FileUtils::isAbsolutePath(path));
+        }
+        std::cerr << path << std::endl;
+
+        options += f.inferWriterOptionsChanges(path);
+        context.addType();
+    }
+    catch (Option::not_found)
+    {}
+
+    context.setCardinality(StageParserContext::None);
+    context.validate();
+
+    Stage& writer(m_manager.addWriter(type));
+    writer.setOptions(options);
+
+    return &writer;
+}
 
 Stage *PipelineReaderJSON::parseElement_Writer(const Json::Value& tree)
 {
@@ -304,62 +382,95 @@ Stage *PipelineReaderJSON::parseElement_Writer(const Json::Value& tree)
 
 bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
 {
+    assert(tree.isArray());
+
     Stage *stage = NULL;
     Stage *reader = NULL;
     Stage *filter = NULL;
     Stage *writer = NULL;
+    std::vector<Stage*> prevStages;
 
     bool isWriter = false;
 
-    Json::Value readers = tree["Readers"];
-    std::vector<Stage*> prevStages;
-    for (auto const& r : readers)
-    {
-        reader = parseElement_Reader(r);
-        prevStages.push_back(reader);
-        stage = reader;
-    }
+    size_t num_stages = tree.size();
+    std::cerr << num_stages << std::endl;
 
-    Json::Value filters = tree["Filters"];
-    bool firstFilter = true;
-    for (auto const& f : filters)
+    // for each stage object in the pipeline array
+    size_t i = 0;
+    for (auto const& s : tree)
     {
-        filter = parseElement_Filter(f);
-        if (firstFilter)
+        // strings are assumed to be filenames
+        if (s.isString())
         {
-            for (auto r : prevStages)
-                filter->setInput(*r);
-            firstFilter = false;
+            // all filenames assumed to be readers...
+            if (i < num_stages-1)
+            {
+                std::cerr << "Reader\n";
+                reader = parseReaderByFilename(s.asString());
+                prevStages.push_back(reader);
+                stage = reader;
+            }
+            // ...except the last
+            else
+            {
+                std::cerr << "Writer\n";
+                writer = parseWriterByFilename(s.asString());
+                writer->setInput(*stage);
+                isWriter = true;
+            }
+            std::cerr << s.asString() << std::endl;
         }
+        // otherwise, we can parse as a generic stage
         else
         {
-            filter->setInput(*stage);
+            /*
+            A stage object may have a member with the name tag whose value is a string. The purpose of the tag is to cross-reference this stage within other stages. Each tag must be unique.
+
+            A stage object may have a member with the name inputs whose value is an array of strings. Each element in the array is the tag of another stage. If inputs is not specified, the previous stage in the array will be used as input. Reader stages will disregard the inputs member.
+
+            A tag mentioned as input to one stage must have been previously defined in the pipeline array.
+
+            A reader or writer stage object may have a member with the name type whose value is a string. The type must specify a valid PDAL reader or writer name.
+
+            A filter stage object must have a member with the name type whose value is a string. The type must specify a valid PDAL filter name.
+
+            A stage object may have additional members with names corresponding to stage-specific option names and their respective values.
+            */
         }
-        stage = filter;
+        i++;
     }
-
-    Json::Value writers = tree["Writers"];
-    for (auto const& w : writers)
-    {
-        writer = parseElement_Writer(w);
-        writer->setInput(*stage);
-        isWriter = true;
-    }
-
     return isWriter;
+    //
+    // Json::Value filters = tree["Filters"];
+    // bool firstFilter = true;
+    // for (auto const& f : filters)
+    // {
+    //     filter = parseElement_Filter(f);
+    //     if (firstFilter)
+    //     {
+    //         for (auto r : prevStages)
+    //             filter->setInput(*r);
+    //         firstFilter = false;
+    //     }
+    //     else
+    //     {
+    //         filter->setInput(*stage);
+    //     }
+    //     stage = filter;
+    // }
 }
 
 bool PipelineReaderJSON::readPipeline(std::istream& input)
 {
+  // std::cerr << input << std::endl;
     Json::Value root;
     Json::Reader jsonReader;
     if (!jsonReader.parse(input, root))
         throw pdal_error("PipelineReaderJSON: unable to parse pipeline");
 
-    boost::optional<Json::Value> opt(root["Pipeline"]);
-    if (!opt.is_initialized())
+    Json::Value subtree = root["pipeline"];
+    if (!subtree)
         throw pdal_error("PipelineReaderJSON: root element is not a Pipeline");
-    Json::Value subtree = opt.get();
     return parseElement_Pipeline(subtree);
 }
 

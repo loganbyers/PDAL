@@ -70,8 +70,10 @@ private:
     // typedef std::map<std::string, std::string> map_t;
 
     bool parseElement_Pipeline(const Json::Value&);
+    Stage *parseReaderByFilename(const std::string& filename);
     Stage *parseElement_Reader(const Json::Value& tree);
     Stage *parseElement_Filter(const Json::Value& tree);
+    Stage *parseWriterByFilename(const std::string& filename);
     Stage *parseElement_Writer(const Json::Value& tree);
     Option parseElement_Option(const std::string& name, const Json::Value& tree);
 

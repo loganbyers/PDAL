@@ -97,7 +97,7 @@ int PipelineKernel::execute()
     // TODO(chambbj): we want to get back to something like this, as implemented
     // in https://github.com/PDAL/PDAL/commit/7668b140c17937fb3649e27ad181683429478cae
     // bool isWriter = manager.readPipeline(m_inputFile);
-    bool isWriter;
+    bool isWriter = false;
     if (FileUtils::extension(m_inputFile) == ".xml")
     {
         PipelineReaderXML pipeReader(manager, isDebug(), getVerboseLevel());

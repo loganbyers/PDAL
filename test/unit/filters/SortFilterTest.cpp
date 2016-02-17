@@ -98,9 +98,9 @@ TEST(SortFilterTest, pipelineXML)
 
     // TODO(chambbj): bury PipelineReader inside of PipelineManager
     reader.readPipeline(Support::configuredpath("filters/sort.xml"));
-    reader.execute();
+    mgr.execute();
 
-    PointViewSet viewSet = reader.views();
+    PointViewSet viewSet = mgr.views();
 
     EXPECT_EQ(viewSet.size(), 1u);
     PointViewPtr view = *viewSet.begin();
@@ -120,9 +120,9 @@ TEST(SortFilterTest, pipelineJSON)
 
     // TODO(chambbj): bury PipelineReader inside of PipelineManager
     reader.readPipeline(Support::configuredpath("filters/sort.json"));
-    reader.execute();
+    mgr.execute();
 
-    PointViewSet viewSet = reader.views();
+    PointViewSet viewSet = mgr.views();
 
     EXPECT_EQ(viewSet.size(), 1u);
     PointViewPtr view = *viewSet.begin();

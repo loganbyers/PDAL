@@ -1,18 +1,6 @@
 {
-  "Pipeline": {
-    "Readers": [{
-      "type": "readers.sbet",
-      "options": [{
-        "name": "filename",
-        "value": "@CMAKE_SOURCE_DIR@/test/data/sbet/2-points.sbet"
-      }]
-    }],
-    "Writers": [{
-      "type": "writers.text",
-      "options": [{
-        "name": "filename",
-        "value": "@CMAKE_SOURCE_DIR@/test/temp/outfile.txt"
-      }]
-    }]
-  }
+  "pipeline": [
+    "@CMAKE_SOURCE_DIR@/test/data/sbet/2-points.sbet",
+    "@CMAKE_SOURCE_DIR@/test/temp/outfile.txt"
+  ]
 }
