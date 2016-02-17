@@ -41,8 +41,6 @@
 
 #include "Support.hpp"
 
-#include <boost/property_tree/xml_parser.hpp>
-
 namespace
 {
 const std::string xml_header = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
