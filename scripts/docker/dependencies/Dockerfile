@@ -261,10 +261,12 @@ RUN git clone https://github.com/gadomski/armadillo.git \
     && make install \
     && rm -rf armadillo
 
+ADD fgt-pr-13.patch /
 
 RUN git clone https://github.com/gadomski/fgt.git \
     && cd fgt \
     && git checkout b3bcea4767fc0fd018bd280a1bc8e8d6c44c513e \
+    && patch -p1 < /fgt-pr-13.patch \
     && cmake . -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release \
     && make \
     && make install \
