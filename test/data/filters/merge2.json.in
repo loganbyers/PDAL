@@ -1,25 +1,19 @@
 {
-  "Pipeline": {
-    "Readers": [{
-      "type": "readers.las",
-      "options": {
+  "pipeline": [
+    {
         "filename": "@CMAKE_SOURCE_DIR@/test/data/las/1.2-with-color.las",
         "spatialreference": "EPSG:2027"
-      }
-    }, {
-      "type": "readers.las",
-      "options": {
+    },
+    {
         "filename": "@CMAKE_SOURCE_DIR@/test/data/las/1.2-with-color.las",
         "spatialreference": "EPSG:2027"
-      }
-    }],
-    "Filters": [{
+    },
+    {
       "type": "filters.merge"
-    }, {
+    },
+    {
       "type": "filters.reprojection",
-      "options": {
-        "out_srs": "EPSG:2028"
-      }
-    }]
-  }
+      "out_srs": "EPSG:2028"
+    }
+  ]
 }

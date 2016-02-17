@@ -467,6 +467,7 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
           if (kate.compare("tag") == 0)
               continue;
           std::cerr << "Found option " << kate << ":" << node[kate].asString() << std::endl;
+          std::cerr << "Of type " << node[kate].type() << std::endl;
 
           Option opt(kate, node[kate].asString());
           options.add(opt);
