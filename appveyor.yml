@@ -68,7 +68,7 @@ notifications:
     on_build_status_changed: true
 
 artifacts:
-    - path: 'c:\pdalbin\*'
+    - path: c:\pdalbin\*
     name: pdalmaster
 
 deploy:
