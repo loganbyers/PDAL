@@ -44,7 +44,7 @@
 #include <pdal/util/Inserter.hpp>
 #include <pdal/util/Extractor.hpp>
 
-#ifndef _WIN32
+#ifndef WIN32
 #include <sys/fcntl.h>
 #endif
 
