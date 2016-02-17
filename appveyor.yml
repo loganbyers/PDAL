@@ -79,7 +79,7 @@ deploy:
     secret_access_key:
       secure: cSqZlsaCxFwXgxJw0BLd7npMFvQk3Vbr74ZPLaBQWLKnOz1cKss9qab1SzSygwkh
     bucket: "pdal"
-    folder: "osgeo4w"
+    folder: "osgeo4w/"
     artifact: pdal-master
     set_public: true
 

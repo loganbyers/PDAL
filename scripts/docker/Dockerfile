@@ -45,8 +45,8 @@ RUN git clone --depth=1 https://github.com/PDAL/PDAL \
 	&& make install \
     && rm -rf PDAL
 
-RUN pip install packaging \
-    && pip install PDAL
+#RUN pip install packaging \
+#    && pip install PDAL
 
 
 RUN git clone https://github.com/PDAL/PRC.git \
