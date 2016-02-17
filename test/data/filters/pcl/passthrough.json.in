@@ -1,22 +1,10 @@
 {
-  "Pipeline": {
-    "Readers": [{
-      "type": "readers.las",
-      "options": {
-        "filename": "@CMAKE_SOURCE_DIR@/test/data/las/1.2-with-color.las"
-      }
-    }],
-    "Filters": [{
+  "pipeline": [
+    "@CMAKE_SOURCE_DIR@/test/data/las/1.2-with-color.las",
+    {
       "type": "filters.pclblock",
-      "options": {
-        "filename": "@CMAKE_SOURCE_DIR@/test/data/filters/pcl/example_PassThrough_1.json"
-      }
-    }],
-    "Writers": [{
-      "type": "writers.las",
-      "options": {
-        "filename": "@CMAKE_SOURCE_DIR@/test/temp/foo.las"
-      }
-    }]
-  }
+      "filename": "@CMAKE_SOURCE_DIR@/test/data/filters/pcl/example_PassThrough_1.json"
+    },
+    "@CMAKE_SOURCE_DIR@/test/temp/foo.las"
+  ]
 }
