@@ -69,6 +69,7 @@ public:
 private:
     // typedef std::map<std::string, std::string> map_t;
 
+    bool parseElement_PipelineOriginal(const Json::Value&);
     bool parseElement_Pipeline(const Json::Value&);
     Stage *parseReaderByFilename(const std::string& filename);
     Stage *parseElement_Reader(const Json::Value& tree);

@@ -374,8 +374,121 @@ Stage *PipelineReaderJSON::parseElement_Writer(const Json::Value& tree)
     return &writer;
 }
 
-
 bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
+{
+  bool isWriter = false;
+    StageFactory f;
+    std::map<std::string, Stage*> tags;
+    std::vector<Stage*> stages;
+
+    size_t i = 0;
+    for (auto const& node : tree)
+    {
+      Stage* stage = NULL;
+
+      // strings are assumed to be filenames
+      if (node.isString())
+      {
+          std::string filename = node.asString();
+          // all filenames assumed to be readers...
+          if (i < tree.size()-1)
+          {
+              stage = parseReaderByFilename(filename);
+              // prevStages.push_back(reader);
+              // stage = reader;
+          }
+          // ...except the last
+          else
+          {
+              stage = parseWriterByFilename(filename);
+              // writer->setInput(*stage);
+              // stage = writer;
+              isWriter = true;
+          }
+      }
+      else
+      {
+        std::string type, filename, tag;
+        if (node.isMember("type"))
+            type = node["type"].asString();
+        if (node.isMember("filename"))
+            filename = node["filename"].asString();
+        if (node.isMember("tag"))
+            tag = node["tag"].asString();
+        std::vector<std::string> inputs =
+            node["inputs"].getMemberNames();
+
+        if (!type.empty())
+        {
+            std::cerr << "Type specified as " << type << std::endl;
+
+            if (i < tree.size()-1)
+            {
+                stage = &m_manager.addReader(type);
+            }
+            else
+            {
+                stage = &m_manager.addWriter(type);
+                isWriter = true;
+            }
+        }
+        else if (!filename.empty())
+        {
+            std::cerr << "Filename specified as " << filename << std::endl;
+
+            if (i < tree.size()-1)
+            {
+                stage = parseReaderByFilename(filename);
+            }
+            else
+            {
+                stage = parseWriterByFilename(filename);
+                isWriter = true;
+            }
+        }
+
+        if (!tag.empty())
+        {
+            if (tags[tag])
+                throw pdal_error("Duplicate tag " + tag);
+
+            tags[tag] = stage;
+        }
+
+      Options options(m_baseOptions);
+        for (auto const& kate : node.getMemberNames())
+        {
+          if (kate.compare("filename") == 0)
+              continue;
+          if (kate.compare("type") == 0)
+              continue;
+          if (kate.compare("inputs") == 0)
+              continue;
+          if (kate.compare("tag") == 0)
+              continue;
+          std::cerr << "Found option " << kate << ":" << node[kate].asString() << std::endl;
+
+          Option opt(kate, node[kate].asString());
+          options.add(opt);
+        }
+
+        stage->addOptions(options);
+      }
+
+      stages.push_back(stage);
+
+      if (i)
+          stage->setInput(*stages[i-1]);
+
+      // stage->setOptions(options);
+
+      i++;
+    }
+
+    return isWriter;
+}
+
+bool PipelineReaderJSON::parseElement_PipelineOriginal(const Json::Value& tree)
 {
     assert(tree.isArray());
 
@@ -427,6 +540,64 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
 
             A stage object may have additional members with names corresponding to stage-specific option names and their respective values.
             */
+
+            Json::Value::Members members = s.getMemberNames();
+            Options opts;
+            for (auto const& n : members)
+            {
+                Stage *innerStage = NULL;
+
+                // if filename, then reader/writer
+                if (n.compare("filename") == 0)
+                {
+                    std::cerr << "Adding reader with filename = " << s[n].asString() << std::endl;
+
+                    // Option opt(n, s[n].asString());
+                    // opts += opt;
+
+                    reader = parseReaderByFilename(s[n].asString());
+                    prevStages.push_back(reader);
+                    innerStage = reader;
+                }
+                /*
+                else if (n.compare("tag") == 0)
+                {}
+                else if (n.compare("type") == 0)
+                {
+                    std::cerr << "Adding filter of type " << s[n].asString() << std::endl;
+
+                    StageParserContext context;
+                    context.addType();
+                    context.setCardinality(StageParserContext::None);
+                    context.validate();
+
+                    Stage& filter(m_manager.addFilter(s[n].asString()));
+                    for (auto r : prevStages)
+                    {
+                        std::cerr << r->getName() << std::endl;
+                        filter.setInput(*r);
+                    }
+
+                    innerStage = &filter;
+                }
+                else if (n.compare("inputs") == 0)
+                {}
+                */
+                else
+                {
+                    std::cerr << "Setting option " << n << " = " << s[n].asString() << std::endl;
+                    Option opt(n, s[n].asString());
+                    opts += opt;
+                }
+                // if filename + type, then reader/writer
+                // if type and not filename, then filter
+                // if tag (use in map)
+                // if inputs, use tags, not previous stage
+                // everything else is an option
+
+                stage = innerStage;
+                // stage->setOptions(opts);
+            }
         }
         i++;
     }
