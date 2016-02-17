@@ -67,8 +67,14 @@ notifications:
     on_build_success: false
     on_build_status_changed: true
 
+after_build:
+  - ECHO ON
+  - 7z a pdal.zip %APPVEYOR_BUILD_FOLDER%\bin\*.*
+  - appveyor PushArtifact pdal.zip -DeploymentName pdal-master-two
+  - dir
+
 artifacts:
-  - path: pdal\bin
+  - path: pdal.zip
     name: pdal-master
 
 deploy:
