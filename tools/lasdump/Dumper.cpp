@@ -36,6 +36,7 @@
 #include <laszip/lasunzipper.hpp>
 
 #include <pdal/util/IStream.hpp>
+#include <pdal/util/portable_endian.hpp>
 
 #include "Dumper.hpp"
 #include "Lasdump.hpp"
