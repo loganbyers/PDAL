@@ -213,19 +213,16 @@ Stage *PipelineReaderJSON::parseReaderByFilename(const std::string& filename)
             context.addType();
         }
 
-        std::cerr << type << ", " << filename << std::endl;
-
-        std::string path(filename);
-        if (!FileUtils::isAbsolutePath(path))
-        {
-            std::string abspath = FileUtils::toAbsolutePath(filename);
-            std::string absdir = FileUtils::getDirectory(abspath);
-            path = FileUtils::toAbsolutePath(path, absdir);
-
-            assert(FileUtils::isAbsolutePath(path));
-        }
-        std::cerr << path << std::endl;
-        Option opt("filename", path);
+        // std::string path(filename);
+        // if (!FileUtils::isAbsolutePath(path))
+        // {
+        //     std::string abspath = FileUtils::toAbsolutePath(filename);
+        //     std::string absdir = FileUtils::getDirectory(abspath);
+        //     path = FileUtils::toAbsolutePath(path, absdir);
+        //
+        //     assert(FileUtils::isAbsolutePath(path));
+        // }
+        Option opt("filename", filename);
         options += opt;
     }
     catch (Option::not_found)
@@ -326,20 +323,18 @@ Stage *PipelineReaderJSON::parseWriterByFilename(const std::string& filename)
         if (type.empty())
             throw pdal_error("Cannot determine output file type of " +
                 filename);
-        std::cerr << type << ", " << filename << std::endl;
 
-        std::string path(filename);
-        if (!FileUtils::isAbsolutePath(path))
-        {
-            std::string abspath = FileUtils::toAbsolutePath(filename);
-            std::string absdir = FileUtils::getDirectory(abspath);
-            path = FileUtils::toAbsolutePath(path, absdir);
+        // std::string path(filename);
+        // if (!FileUtils::isAbsolutePath(path))
+        // {
+        //     std::string abspath = FileUtils::toAbsolutePath(filename);
+        //     std::string absdir = FileUtils::getDirectory(abspath);
+        //     path = FileUtils::toAbsolutePath(path, absdir);
+        //
+        //     assert(FileUtils::isAbsolutePath(path));
+        // }
 
-            assert(FileUtils::isAbsolutePath(path));
-        }
-        std::cerr << path << std::endl;
-
-        options += f.inferWriterOptionsChanges(path);
+        options += f.inferWriterOptionsChanges(filename);
         context.addType();
     }
     catch (Option::not_found)
@@ -393,7 +388,6 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
     bool isWriter = false;
 
     size_t num_stages = tree.size();
-    std::cerr << num_stages << std::endl;
 
     // for each stage object in the pipeline array
     size_t i = 0;
@@ -405,7 +399,6 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
             // all filenames assumed to be readers...
             if (i < num_stages-1)
             {
-                std::cerr << "Reader\n";
                 reader = parseReaderByFilename(s.asString());
                 prevStages.push_back(reader);
                 stage = reader;
@@ -413,12 +406,10 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
             // ...except the last
             else
             {
-                std::cerr << "Writer\n";
                 writer = parseWriterByFilename(s.asString());
                 writer->setInput(*stage);
                 isWriter = true;
             }
-            std::cerr << s.asString() << std::endl;
         }
         // otherwise, we can parse as a generic stage
         else
@@ -462,7 +453,6 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
 
 bool PipelineReaderJSON::readPipeline(std::istream& input)
 {
-  // std::cerr << input << std::endl;
     Json::Value root;
     Json::Reader jsonReader;
     if (!jsonReader.parse(input, root))
