@@ -69,7 +69,7 @@ notifications:
 
 artifacts:
   - path: pdal\bin
-    name: pdal-master
+    name: pdalmaster
 
 deploy:
     # Amazon S3 deployment provider settings
@@ -80,7 +80,7 @@ deploy:
       secure: cSqZlsaCxFwXgxJw0BLd7npMFvQk3Vbr74ZPLaBQWLKnOz1cKss9qab1SzSygwkh
     bucket: "pdal"
     folder: "osgeo4w/"
-    artifact: pdal-master
+    artifact: pdalmaster
     set_public: true
 
 #test_script:
