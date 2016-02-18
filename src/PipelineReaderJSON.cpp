@@ -384,7 +384,10 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
     size_t i = 0;
     for (auto const& node : tree)
     {
+          std::vector<std::string> inputs;
       Stage* stage = NULL;
+
+        std::cerr << node << std::endl;
 
       // strings are assumed to be filenames
       if (node.isString())
@@ -415,8 +418,14 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
             filename = node["filename"].asString();
         if (node.isMember("tag"))
             tag = node["tag"].asString();
-        std::vector<std::string> inputs =
-            node["inputs"].getMemberNames();
+        if (node.isMember("inputs")) {
+          for (auto const& i : node["inputs"]) {
+            if (i.isString())
+                inputs.push_back(i.asString());
+            else
+                std::cerr << i << " is not a valid input\n";
+          }
+        }
 
         if (!type.empty())
         {
@@ -452,22 +461,20 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
             if (tags[tag])
                 throw pdal_error("Duplicate tag " + tag);
 
+            std::cerr << "Adding tag " << tag << std::endl;
             tags[tag] = stage;
         }
 
       Options options(m_baseOptions);
         for (auto const& kate : node.getMemberNames())
         {
-          if (kate.compare("filename") == 0)
-              continue;
           if (kate.compare("type") == 0)
               continue;
           if (kate.compare("inputs") == 0)
               continue;
           if (kate.compare("tag") == 0)
               continue;
-          std::cerr << "Found option " << kate << ":" << node[kate].asString() << std::endl;
-          std::cerr << "Of type " << node[kate].type() << std::endl;
+          std::cerr << "Found option " << kate << ":" << node[kate].asString() << " of type " << node[kate].type() << std::endl;
 
           Option opt(kate, node[kate].asString());
           options.add(opt);
@@ -476,12 +483,29 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
         stage->addOptions(options);
       }
 
-      stages.push_back(stage);
+      if (!inputs.empty())
+      {
+        for (auto const& in : inputs)
+        {
+          std::cerr << "Adding stage " << tags[in]->getName() << " (tag = " << in << ") as input to " << stage->getName() << std::endl;
+          if (!tags[in])
+          {
+            throw pdal_error("Invalid pipeline, undefined stage " + in);
+          }
 
-      if (i)
+          stage->setInput(*tags[in]);
+        }
+      }
+      else
+      {
+        if (i)
+        {
+          std::cerr << "Adding stage " << stages[i-1]->getName() << " (previous) as input to " << stage->getName() << std::endl;
           stage->setInput(*stages[i-1]);
+        }
+      }
 
-      // stage->setOptions(options);
+      stages.push_back(stage);
 
       i++;
     }
