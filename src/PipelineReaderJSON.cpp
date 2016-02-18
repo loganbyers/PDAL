@@ -130,7 +130,7 @@ private:
 
 
 PipelineReaderJSON::PipelineReaderJSON(PipelineManager& manager, bool isDebug,
-                               uint32_t verboseLevel) :
+                                       uint32_t verboseLevel) :
     m_manager(manager) , m_isDebug(isDebug) , m_verboseLevel(verboseLevel)
 {
     if (m_isDebug)
@@ -322,7 +322,7 @@ Stage *PipelineReaderJSON::parseWriterByFilename(const std::string& filename)
         type = f.inferWriterDriver(filename);
         if (type.empty())
             throw pdal_error("Cannot determine output file type of " +
-                filename);
+                             filename);
 
         // std::string path(filename);
         // if (!FileUtils::isAbsolutePath(path))
@@ -376,7 +376,7 @@ Stage *PipelineReaderJSON::parseElement_Writer(const Json::Value& tree)
 
 bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
 {
-  bool isWriter = false;
+    bool isWriter = false;
     StageFactory f;
     std::map<std::string, Stage*> tags;
     std::vector<Stage*> stages;
@@ -384,130 +384,132 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
     size_t i = 0;
     for (auto const& node : tree)
     {
-          std::vector<std::string> inputs;
-      Stage* stage = NULL;
+        std::vector<std::string> inputs;
+        Stage* stage = NULL;
 
         std::cerr << node << std::endl;
 
-      // strings are assumed to be filenames
-      if (node.isString())
-      {
-          std::string filename = node.asString();
-          // all filenames assumed to be readers...
-          if (i < tree.size()-1)
-          {
-              stage = parseReaderByFilename(filename);
-              // prevStages.push_back(reader);
-              // stage = reader;
-          }
-          // ...except the last
-          else
-          {
-              stage = parseWriterByFilename(filename);
-              // writer->setInput(*stage);
-              // stage = writer;
-              isWriter = true;
-          }
-      }
-      else
-      {
-        std::string type, filename, tag;
-        if (node.isMember("type"))
-            type = node["type"].asString();
-        if (node.isMember("filename"))
-            filename = node["filename"].asString();
-        if (node.isMember("tag"))
-            tag = node["tag"].asString();
-        if (node.isMember("inputs")) {
-          for (auto const& i : node["inputs"]) {
-            if (i.isString())
-                inputs.push_back(i.asString());
-            else
-                std::cerr << i << " is not a valid input\n";
-          }
-        }
-
-        if (!type.empty())
+        // strings are assumed to be filenames
+        if (node.isString())
         {
-            std::cerr << "Type specified as " << type << std::endl;
-
-            if (i < tree.size()-1)
-            {
-                stage = &m_manager.addReader(type);
-            }
-            else
-            {
-                stage = &m_manager.addWriter(type);
-                isWriter = true;
-            }
-        }
-        else if (!filename.empty())
-        {
-            std::cerr << "Filename specified as " << filename << std::endl;
-
+            std::string filename = node.asString();
+            // all filenames assumed to be readers...
             if (i < tree.size()-1)
             {
                 stage = parseReaderByFilename(filename);
+                // prevStages.push_back(reader);
+                // stage = reader;
             }
+            // ...except the last
             else
             {
                 stage = parseWriterByFilename(filename);
+                // writer->setInput(*stage);
+                // stage = writer;
                 isWriter = true;
             }
         }
-
-        if (!tag.empty())
+        else
         {
-            if (tags[tag])
-                throw pdal_error("Duplicate tag " + tag);
+            std::string type, filename, tag;
+            if (node.isMember("type"))
+                type = node["type"].asString();
+            if (node.isMember("filename"))
+                filename = node["filename"].asString();
+            if (node.isMember("tag"))
+                tag = node["tag"].asString();
+            if (node.isMember("inputs"))
+            {
+                for (auto const& i : node["inputs"])
+                {
+                    if (i.isString())
+                        inputs.push_back(i.asString());
+                    else
+                        std::cerr << i << " is not a valid input\n";
+                }
+            }
 
-            std::cerr << "Adding tag " << tag << std::endl;
-            tags[tag] = stage;
+            if (!type.empty())
+            {
+                std::cerr << "Type specified as " << type << std::endl;
+
+                if (i < tree.size()-1)
+                {
+                    stage = &m_manager.addReader(type);
+                }
+                else
+                {
+                    stage = &m_manager.addWriter(type);
+                    isWriter = true;
+                }
+            }
+            else if (!filename.empty())
+            {
+                std::cerr << "Filename specified as " << filename << std::endl;
+
+                if (i < tree.size()-1)
+                {
+                    stage = parseReaderByFilename(filename);
+                }
+                else
+                {
+                    stage = parseWriterByFilename(filename);
+                    isWriter = true;
+                }
+            }
+
+            if (!tag.empty())
+            {
+                if (tags[tag])
+                    throw pdal_error("Duplicate tag " + tag);
+
+                std::cerr << "Adding tag " << tag << std::endl;
+                tags[tag] = stage;
+            }
+
+            Options options(m_baseOptions);
+            for (auto const& kate : node.getMemberNames())
+            {
+                if (kate.compare("type") == 0)
+                    continue;
+                if (kate.compare("inputs") == 0)
+                    continue;
+                if (kate.compare("tag") == 0)
+                    continue;
+                std::cerr << "Found option " << kate << ":" << node[kate].asString() << " of type " << node[kate].type() << std::endl;
+
+                Option opt(kate, node[kate].asString());
+                options.add(opt);
+            }
+
+            stage->addOptions(options);
         }
 
-      Options options(m_baseOptions);
-        for (auto const& kate : node.getMemberNames())
+        if (!inputs.empty())
         {
-          if (kate.compare("type") == 0)
-              continue;
-          if (kate.compare("inputs") == 0)
-              continue;
-          if (kate.compare("tag") == 0)
-              continue;
-          std::cerr << "Found option " << kate << ":" << node[kate].asString() << " of type " << node[kate].type() << std::endl;
+            for (auto const& in : inputs)
+            {
+                std::cerr << "Adding stage " << tags[in]->getName() << " (tag = " << in << ") as input to " << stage->getName() << std::endl;
+                if (!tags[in])
+                {
+                    throw pdal_error("Invalid pipeline, undefined stage " + in);
+                }
 
-          Option opt(kate, node[kate].asString());
-          options.add(opt);
+                stage->setInput(*tags[in]);
+            }
+        }
+        else
+        {
+            if (i)
+            {
+                std::cerr << "Adding stage " << stages[i-1]->getName() << " (previous) as input to " << stage->getName() << std::endl;
+                stage->setInput(*stages[i-1]);
+            }
         }
 
-        stage->addOptions(options);
-      }
+        stages.push_back(stage);
 
-      if (!inputs.empty())
-      {
-        for (auto const& in : inputs)
-        {
-          std::cerr << "Adding stage " << tags[in]->getName() << " (tag = " << in << ") as input to " << stage->getName() << std::endl;
-          if (!tags[in])
-          {
-            throw pdal_error("Invalid pipeline, undefined stage " + in);
-          }
-
-          stage->setInput(*tags[in]);
-        }
-      }
-      else
-      {
-        if (i)
-        {
-          std::cerr << "Adding stage " << stages[i-1]->getName() << " (previous) as input to " << stage->getName() << std::endl;
-          stage->setInput(*stages[i-1]);
-        }
-      }
-
-      stages.push_back(stage);
-
-      i++;
+        i++;
     }
 
     return isWriter;
