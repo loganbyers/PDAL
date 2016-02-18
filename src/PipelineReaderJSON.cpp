@@ -397,15 +397,11 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
             if (i < tree.size()-1)
             {
                 stage = parseReaderByFilename(filename);
-                // prevStages.push_back(reader);
-                // stage = reader;
             }
             // ...except the last
             else
             {
                 stage = parseWriterByFilename(filename);
-                // writer->setInput(*stage);
-                // stage = writer;
                 isWriter = true;
             }
         }
@@ -506,6 +502,10 @@ bool PipelineReaderJSON::parseElement_Pipeline(const Json::Value& tree)
                 stage->setInput(*stages[i-1]);
             }
         }
+
+        std::cerr << stage->getName() << " has inputs:\n";
+        for (Stage *s : stage->getInputs())
+            std::cerr << s->getName() << std::endl;
 
         stages.push_back(stage);
 
