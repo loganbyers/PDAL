@@ -1,5 +1,6 @@
 /******************************************************************************
  * Copyright (c) 2014, Bradley J Chambers (brad.chambers@gmail.com)
+ * Copyright (c) 2016, Logan C Byers (logan.c.byers@gmail.com)
  *
  * All rights reserved.
  *
@@ -55,6 +56,7 @@ public:
 
 private:
     double m_length;
+    double m_buffer;
     double m_xOrigin;
     double m_yOrigin;
 
